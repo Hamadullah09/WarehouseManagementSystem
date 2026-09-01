@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Main-Class: com.warehouse.u300bridge.Main
+Class-Path: libs/RXTXcomm.jar libs/UHFAPI20221125.jar libs/commons-beanu
+ tils-1.8.0.jar libs/commons-collections-3.2.1.jar libs/commons-lang-2.6
+ .jar libs/commons-logging-1.1.1.jar libs/ezmorph-1.0.6.jar libs/jna-5.4
+ .0.jar libs/jna-platform-5.4.0.jar libs/json-lib-2.4-jdk15.jar libs/xom
+ -1.2.6.jar 
+Created-By: 21.0.12.1 (Eclipse Adoptium)
+

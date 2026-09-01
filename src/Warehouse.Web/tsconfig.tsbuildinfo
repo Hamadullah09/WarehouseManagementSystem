@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/client.ts","./src/api/types.ts","./src/components/printablegatedocument.tsx","./src/hooks/usegatehub.ts","./src/pages/alarms.tsx","./src/pages/cycles.tsx","./src/pages/dashboard.tsx","./src/pages/documents.tsx","./src/pages/epcimport.tsx","./src/pages/gatedisplay.tsx","./src/pages/readers.tsx"],"version":"5.9.3"}

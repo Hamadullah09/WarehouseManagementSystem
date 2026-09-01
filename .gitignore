@@ -1,0 +1,48 @@
+# Build output
+bin/
+obj/
+[Bb]uild/
+node_modules/
+dist/
+src/Warehouse.Api/wwwroot/
+
+# Logs
+logs/
+*.log
+
+# Local configuration and secrets. bridge.properties.example is committed;
+# the live file is not, because it carries site-specific addressing.
+bridge/u300-bridge/bridge.properties
+appsettings.*.local.json
+*.user
+
+# Test output
+TestResults/
+[Tt]est[Rr]esults/
+*.trx
+
+# Editor and OS
+.vs/
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Chainway vendor SDK.
+#
+# The U300 manual grants a non-transferable, non-exclusive licence and states
+# that no right to copy the licensed program is granted. Redistributing these
+# jars -- publicly or otherwise -- would be sublicensing them, so they stay out
+# of source control. Run scripts/fetch-vendor-libs.ps1 against your own copy of
+# U300.rar to populate them locally.
+# ---------------------------------------------------------------------------
+bridge/u300-bridge/libs/*.jar
+bridge/u300-bridge/native/*
+!bridge/u300-bridge/libs/.gitkeep
+!bridge/u300-bridge/native/.gitkeep
+
+# The vendor archive itself, and anything extracted from it.
+U300.rar
+vendor/

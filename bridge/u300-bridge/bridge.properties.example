@@ -1,0 +1,45 @@
+# U300 bridge configuration.
+# Every value may be overridden by an environment variable using the
+# uppercased name with dots replaced by underscores, e.g. READER_HOST.
+
+# Identifier reported to the backend. Must match the Readers row and the
+# Rfid:Readers[].ReaderId entry in the backend configuration.
+reader.id=U300-01
+
+# Where the backend adapter connects.
+listen.host=127.0.0.1
+listen.port=9310
+
+# Reader address. 192.168.1.100:9160 are the vendor defaults (U300 manual,
+# integration guide 4.4.2: port 9160 carries the RAW protocol the SDK speaks).
+reader.host=192.168.1.100
+reader.port=9160
+
+# Use RS-232 instead of Ethernet by setting a port name; leave blank for TCP.
+# reader.serial=COM3
+
+# Set true for U300-8 / URA8 hardware (8 antenna ports).
+reader.eightPort=false
+
+# Antenna ports to enable, comma separated, 1-based.
+reader.antennas=1
+
+# Transmit power per antenna in dBm. The U300 accepts 1-30 dBm.
+reader.power.1=30
+
+# Suppress repeated reports of the same tag for this many milliseconds at the
+# reader. 0 disables. The backend deduplicates regardless.
+reader.filterRepeatMs=0
+
+# Invert the logical sense of the GPI lines at the reader.
+reader.reverseGpi=false
+
+# Heartbeat interval to connected clients, milliseconds.
+bridge.heartbeatMs=5000
+
+# Delay between reader reconnect attempts, milliseconds.
+bridge.reconnectMs=5000
+
+# How long to probe the reader's TCP port before giving up, milliseconds.
+# Keeps an unreachable reader from blocking on the OS connect timeout.
+bridge.connectProbeMs=3000
