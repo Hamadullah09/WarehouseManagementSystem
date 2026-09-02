@@ -8,21 +8,25 @@
 */
 
 :root {
-  --bg: #0b0f14;
-  --surface: #141b23;
-  --surface-2: #1c252f;
-  --line: #2a3542;
-  --text: #e8eef5;
-  --muted: #93a4b6;
+  /* Light only. The gate display and the console share one palette: black on
+     white with saturated accents, sized to be read at a distance and by
+     people who are not looking for small print. */
+  --bg: #f2f5f8;
+  --surface: #ffffff;
+  --surface-2: #f7f9fb;
+  --line: #c8d2dc;
+  --text: #10161c;
+  --muted: #4c5964;
 
-  --ok: #22c55e;
-  --ok-dim: #16833f;
-  --warn: #f59e0b;
-  --bad: #ef4444;
-  --bad-dim: #991b1b;
-  --info: #38bdf8;
-  --inward: #22c55e;
-  --outward: #38bdf8;
+  --ok: #118a3d;
+  --ok-dim: #0d6b2f;
+  --warn: #b36a00;
+  --bad: #d50000;
+  --bad-dim: #a30000;
+  --info: #1352c4;
+  --inward: #118a3d;
+  --outward: #1352c4;
+  --brand: #f07800;
 
   --radius: 10px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -52,9 +56,9 @@ body {
   transition: background-color .35s ease;
 }
 
-.display--pass    { background: #06180d; }
-.display--alarm   { background: #1a0708; }
-.display--offline { background: #14100a; }
+.display--pass    { background: #e6f6ec; }
+.display--alarm   { background: #ffe8e8; }
+.display--offline { background: #fff4e0; }
 
 .display--offline h1 { font-size: clamp(24px, 3vw, 48px); }
 
@@ -766,4 +770,115 @@ textarea { font-family: var(--mono); min-height: 140px; resize: vertical; }
   /* A long balance list may run to a second sheet; keep the totals whole. */
   .print-doc__totals, .print-doc__head, .print-doc__foot { break-inside: avoid; }
   .print-doc__columns li { break-inside: avoid; }
+}
+
+
+/* ---- larger, plainer ---------------------------------------------------
+   Everything below raises the floor on type size and makes every control
+   look like a control. Nothing important is a grey outline or an icon on
+   its own.
+   ----------------------------------------------------------------------- */
+
+body { font-size: 16px; }
+
+.content { font-size: 16px; }
+.content h1 { font-size: 30px; }
+.content h2 { font-size: 22px; margin-top: 28px; }
+
+table { font-size: 16px; }
+th { font-size: 13px; letter-spacing: .08em; }
+td { padding: 14px 16px; }
+
+button, .button {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover { background: var(--surface-2); }
+
+button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+button.primary:hover { filter: brightness(.94); }
+
+button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+button.danger:hover { filter: brightness(.94); }
+
+button.good { background: var(--ok); border-color: var(--ok); color: #fff; }
+button.good:hover { filter: brightness(.94); }
+
+button.info { background: var(--info); border-color: var(--info); color: #fff; }
+button.info:hover { filter: brightness(.94); }
+
+button.warn { background: var(--warn); border-color: var(--warn); color: #fff; }
+button.warn:hover { filter: brightness(.94); }
+
+input, select, textarea {
+  font-size: 16px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field label { font-size: 14px; font-weight: 600; }
+
+/* The signed-in person, top right of the console. */
+.account { position: relative; margin-left: auto; }
+
+.account__badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: var(--brand);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account__menu {
+  position: absolute;
+  right: 0;
+  top: 54px;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(16, 22, 28, .16);
+  overflow: hidden;
+  z-index: 40;
+}
+
+.account__who { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.account__who strong { display: block; font-size: 16px; }
+.account__who span { font-size: 13px; color: var(--muted); }
+
+.account__menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 14px 16px;
+  font-size: 16px;
+}
+
+.account__menu button:hover { background: var(--surface-2); }
+
+/* Status pill, used wherever a row carries a state. */
+.pill--chip {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
 }

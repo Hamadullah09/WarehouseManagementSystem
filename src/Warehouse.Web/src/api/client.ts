@@ -9,6 +9,7 @@ import type {
   Paged,
   Reader,
   Session,
+  WarehouseUser,
 } from './types'
 
 const TOKEN_KEY = 'warehouse.session'
@@ -143,6 +144,34 @@ export const api = {
 
   deleteDocument: (id: number) =>
     request<void>(`/api/documents/${id}`, { method: 'DELETE' }),
+
+  users: () => request<WarehouseUser[]>('/api/users'),
+
+  roles: () => request<{ name: string; description?: string }[]>('/api/users/roles'),
+
+  createUser: (body: {
+    userName: string
+    displayName: string
+    email?: string
+    password: string
+    roles: string[]
+  }) => post<WarehouseUser>('/api/users', body),
+
+  updateUser: (
+    id: number,
+    body: { displayName?: string; email?: string; roles?: string[]; isActive?: boolean },
+  ) => request<WarehouseUser>(`/api/users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+
+  resetUserPassword: (id: number, newPassword: string) =>
+    post<void>(`/api/users/${id}/reset-password`, { newPassword, mustChangePassword: true }),
+
+  /** Removes the account, or deactivates it when it has history. Says which. */
+  deleteUser: (id: number) =>
+    request<{ deactivated: boolean; message: string }>(`/api/users/${id}`, { method: 'DELETE' }),
 
   readers: () => request<Reader[]>('/api/rfid/readers'),
   connectReader: (id: string) => post<unknown>(`/api/rfid/readers/${encodeURIComponent(id)}/connect`),

@@ -239,3 +239,18 @@ export interface EpcImportOutcome {
   }
   documents: DocumentSummary[]
 }
+
+/** An account, as the Users page shows it. */
+export interface WarehouseUser {
+  id: number
+  userName: string
+  displayName: string
+  email?: string | null
+  roles: string[]
+  isActive: boolean
+  mustChangePassword: boolean
+  isLockedOut: boolean
+  resetRequested: boolean
+  lastLoginAt?: string | null
+  createdAt: string
+}

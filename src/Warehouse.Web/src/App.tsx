@@ -4,6 +4,8 @@ import { api, session } from './api/client'
 import GateDisplay from './pages/GateDisplay'
 import Dashboard from './pages/Dashboard'
 import Documents from './pages/Documents'
+import Users from './pages/Users'
+import Profile from './pages/Profile'
 import Readers from './pages/Readers'
 import Alarms from './pages/Alarms'
 import Cycles from './pages/Cycles'
@@ -55,19 +57,14 @@ function AdminShell() {
         <NavLink to="/alarms">Alarms</NavLink>
         <NavLink to="/readers">RFID readers</NavLink>
         <NavLink to="/epcs">EPC import</NavLink>
+        {current?.roles.includes('Administrator') && <NavLink to="/users">Users</NavLink>}
 
         <div className="sidebar__spacer" />
-
-        <div style={{ padding: '0 10px 10px', fontSize: 12 }} className="muted">
-          {current?.displayName}
-          <br />
-          {current?.roles.join(', ')}
-        </div>
-
-        <button onClick={signOut}>Sign out</button>
       </nav>
 
       <main className="content">
+        <AccountBar current={current} onSignOut={signOut} />
+
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/documents" element={<Documents />} />
@@ -75,9 +72,56 @@ function AdminShell() {
           <Route path="/alarms" element={<Alarms />} />
           <Route path="/readers" element={<Readers />} />
           <Route path="/epcs" element={<EpcImport />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+    </div>
+  )
+}
+
+/**
+ * The signed-in person, top right of every console page.
+ *
+ * <p>One badge, two choices. Their name is on it so nobody has to wonder whose
+ * account is recording the movements they are about to approve.
+ */
+function AccountBar({
+  current,
+  onSignOut,
+}: {
+  current: { displayName: string; roles: string[] } | null
+  onSignOut: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+  const initial = current?.displayName?.trim().charAt(0).toUpperCase() || '?'
+
+  return (
+    <div className="row" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
+      <div className="account">
+        <button
+          className="account__badge"
+          onClick={() => setOpen(!open)}
+          aria-label="Account"
+          title={current?.displayName}
+        >
+          {initial}
+        </button>
+
+        {open && (
+          <div className="account__menu" onMouseLeave={() => setOpen(false)}>
+            <div className="account__who">
+              <strong>{current?.displayName}</strong>
+              <span>{current?.roles.join(', ')}</span>
+            </div>
+
+            <button onClick={() => { setOpen(false); navigate('/profile') }}>My profile</button>
+            <button onClick={onSignOut}>Log out</button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
