@@ -10,9 +10,10 @@
   balance figures auto-size so they fill their box on a larger screen without
   overflowing this one.
 
-  The alarm is a floating card in the bottom-right corner. It sits over the
-  sheet rather than in it, so raising an alarm never reflows anything or
-  pushes the buttons off the screen.
+  Status and errors share one band under the sheet: what the reader is doing,
+  the tag it last saw, and, when something is wrong, the problem in its place.
+  A separate alarm card covered the balance figures, which are the one thing
+  that must never be hidden.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -207,30 +208,39 @@
             </LinearLayout>
 
             <!-- What the reader is doing, and the tag it last saw -->
-            <TextView
-                android:id="@+id/status_text"
+            <LinearLayout
+                android:id="@+id/status_panel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:layout_marginTop="5dp"
                 android:paddingHorizontal="8dp"
-                android:paddingVertical="5dp"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:background="@color/info_soft"
-                android:textColor="@color/info" />
+                android:paddingVertical="4dp"
+                android:background="@color/info_soft">
 
-            <TextView
-                android:id="@+id/last_epc"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="11sp"
-                android:gravity="center"
-                android:textColor="@color/ink_muted"
-                android:maxLines="1"
-                android:ellipsize="middle" />
+                <TextView
+                    android:id="@+id/status_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/info" />
+
+                <TextView
+                    android:id="@+id/last_epc"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textColor="@color/ink"
+                    android:maxLines="1"
+                    android:ellipsize="middle" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Controls. Green go, red stop, grey back. -->
@@ -272,41 +282,4 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!--
-      Alarm: a card floating over the bottom-right corner. Out of the layout
-      flow entirely, so it can never move the buttons or squeeze the list.
-    -->
-    <LinearLayout
-        android:id="@+id/alarm_panel"
-        android:layout_width="360dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="14dp"
-        android:layout_marginBottom="60dp"
-        android:orientation="vertical"
-        android:background="@drawable/bg_alarm_card"
-        android:elevation="12dp"
-        android:padding="12dp"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/alarm_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="#FFFFFF"
-            android:maxLines="1" />
-
-        <TextView
-            android:id="@+id/alarm_body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textSize="13sp"
-            android:textColor="#FFFFFF"
-            android:maxLines="3"
-            android:ellipsize="end" />
-    </LinearLayout>
 </FrameLayout>

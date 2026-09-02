@@ -29,9 +29,13 @@ public final class AppSettings {
     private static final String KEY_ALARM_OUTPUT = "alarm_output";
     private static final String KEY_SOUND = "sound_enabled";
     private static final String KEY_NO_READ = "no_read_timeout_ms";
+    private static final String KEY_READ_INTERVAL = "read_interval_ms";
     private static final String KEY_GPIO_START = "gpio_start_enabled";
     private static final String KEY_GPIO_INPUT = "gpio_input_pin";
     private static final String KEY_GPIO_ACTIVE_HIGH = "gpio_active_high";
+
+    /** One roll released per second, as the gate procedure works. */
+    public static final int DEFAULT_READ_INTERVAL_MS = 1000;
 
     /**
      * Silence, in milliseconds, that counts as "something went past without a
@@ -97,6 +101,23 @@ public final class AppSettings {
         }
 
         return "U300-" + (TextUtils.isEmpty(serial) ? "UNKNOWN" : serial.replaceAll("\\s+", ""));
+    }
+
+    /**
+     * Gap between two rolls being shown.
+     *
+     * <p>The reader reports the same tag many times a second and several tags
+     * at once. Rather than slow the reader down, which only makes it miss
+     * rolls, each distinct tag is queued as it arrives and released one per
+     * interval. Nothing is lost and the operator sees them at the pace the
+     * gate procedure works at. Zero releases them as fast as they arrive.
+     */
+    public int readIntervalMs() {
+        return prefs.getInt(KEY_READ_INTERVAL, DEFAULT_READ_INTERVAL_MS);
+    }
+
+    public void setReadIntervalMs(int value) {
+        prefs.edit().putInt(KEY_READ_INTERVAL, Math.max(0, value)).apply();
     }
 
     /**

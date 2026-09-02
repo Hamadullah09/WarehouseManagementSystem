@@ -64,9 +64,20 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     /** Distinct tags accepted this session, in arrival order. */
     private final Set<String> accepted = new LinkedHashSet<>();
 
+    /**
+     * Tags read that are not on this document, in arrival order.
+     *
+     * <p>Held apart from the document's own rows so that rebuilding the list
+     * cannot lose them. An unknown roll has to be set aside by hand, and the
+     * operator only knows which one it was because it is named on this list;
+     * having it disappear when the next roll is read would be the worst kind
+     * of quiet failure.
+     */
+    private final Set<String> strays = new LinkedHashSet<>();
+
     private final List<Row> rows = new ArrayList<>();
 
-    private final Runnable clearAlarm = () -> this.alarmPanel.setVisibility(View.GONE);
+    private final Runnable clearAlarm = this::restoreStatus;
     private Runnable silenceCheck;
 
     private ApiClient api;
@@ -89,9 +100,12 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private TextView balanceQuantity;
     private TextView statusText;
     private TextView lastEpc;
-    private View alarmPanel;
-    private TextView alarmTitle;
-    private TextView alarmBody;
+    private View statusPanel;
+
+    /** What the status band should say once an alarm has cleared. */
+    private String restingStatus = "";
+    private int restingText = R.color.info;
+    private int restingBackground = R.color.info_soft;
     private MaterialButton startButton;
     private MaterialButton stopButton;
     private RowAdapter adapter;
@@ -115,9 +129,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         balanceQuantity = findViewById(R.id.balance_quantity);
         statusText = findViewById(R.id.status_text);
         lastEpc = findViewById(R.id.last_epc);
-        alarmPanel = findViewById(R.id.alarm_panel);
-        alarmTitle = findViewById(R.id.alarm_title);
-        alarmBody = findViewById(R.id.alarm_body);
+        statusPanel = findViewById(R.id.status_panel);
         startButton = findViewById(R.id.start);
         stopButton = findViewById(R.id.stop);
 
@@ -160,7 +172,10 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
                     });
                 });
             } catch (ApiClient.ApiException e) {
-                runOnUiThread(() -> showAlarm(getString(R.string.scan_load_failed), e.getMessage()));
+                runOnUiThread(() -> {
+                    setStatus(getString(R.string.scan_load_failed), R.color.alarm, R.color.alarm_soft);
+                    showAlarm(getString(R.string.scan_load_failed), e.getMessage());
+                });
             }
         });
     }
@@ -180,6 +195,12 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     private void rebuildRows() {
         rows.clear();
+
+        // Strays first: the row that needs acting on is the row worth seeing
+        // without scrolling.
+        for (String epc : strays) {
+            rows.add(Row.stray(getString(R.string.scan_unknown_roll), epc));
+        }
 
         for (DocumentItem item : document.items) {
             rows.add(Row.of(item));
@@ -201,6 +222,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         }
 
         accepted.clear();
+        strays.clear();
+        lastEpc.setText("");
         sessionKey = UUID.randomUUID().toString();
         sessionStartedAt = System.currentTimeMillis();
 
@@ -358,7 +381,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             return;
         }
 
-        lastEpc.setText(getString(R.string.scan_last_tag, epc));
+        lastEpc.setText(epc);
         lastReadAt = System.currentTimeMillis();
         silenceReported = false;
 
@@ -374,10 +397,10 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             // comes back with the verdict.
             reader.signalAlarm();
             showAlarm(getString(R.string.scan_invalid_title),
-                    getString(R.string.scan_invalid_body, document.documentNumber, epc));
+                    getString(R.string.scan_invalid_body, document.documentNumber));
 
-            rows.add(0, Row.stray(epc));
-            adapter.notifyItemInserted(0);
+            strays.add(epc);
+            rebuildRows();
 
             return;
         }
@@ -417,7 +440,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
                 if (System.currentTimeMillis() - lastReadAt >= timeout && !silenceReported) {
                     silenceReported = true;
                     reader.signalAlarm();
-                    showAlarm(getString(R.string.scan_no_tag_title), getString(R.string.scan_no_epc));
+                    showAlarm(getString(R.string.scan_no_tag_title),
+                            getString(R.string.scan_no_silence));
                 }
 
                 ui.postDelayed(this, Math.max(200, timeout / 4));
@@ -436,17 +460,42 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     // ---------------------------------------------------------------- chrome
 
+    /**
+     * Sets the resting state of the status band and shows it.
+     *
+     * <p>Remembered separately from an alarm, so when the alarm clears the
+     * band goes back to describing what the reader is actually doing rather
+     * than to whatever it happened to say last.
+     */
     private void setStatus(String text, int textColour, int backgroundColour) {
-        statusText.setText(text);
-        statusText.setTextColor(getColor(textColour));
-        statusText.setBackgroundColor(getColor(backgroundColour));
+        restingStatus = text;
+        restingText = textColour;
+        restingBackground = backgroundColour;
+
+        ui.removeCallbacks(clearAlarm);
+        restoreStatus();
     }
 
-    /** Shows an alarm and clears it after {@link #ALARM_VISIBLE_MS}. */
+    private void restoreStatus() {
+        statusText.setText(restingStatus);
+        statusText.setTextColor(getColor(restingText));
+        statusPanel.setBackgroundColor(getColor(restingBackground));
+        lastEpc.setTextColor(getColor(R.color.ink));
+    }
+
+    /**
+     * Puts a problem in the status band, in place of the running commentary.
+     *
+     * <p>It shares the band rather than floating over the sheet: a separate
+     * card covered the balance figures, and those are the one thing that must
+     * stay visible. Clears itself after {@link #ALARM_VISIBLE_MS}, and each
+     * new alarm restarts the timer.
+     */
     private void showAlarm(String title, String body) {
-        alarmTitle.setText(title);
-        alarmBody.setText(body);
-        alarmPanel.setVisibility(View.VISIBLE);
+        statusText.setText(getString(R.string.status_alarm_line, title, body));
+        statusText.setTextColor(getColor(R.color.page));
+        statusPanel.setBackgroundColor(getColor(R.color.alarm));
+        lastEpc.setTextColor(getColor(R.color.page));
 
         ui.removeCallbacks(clearAlarm);
         ui.postDelayed(clearAlarm, ALARM_VISIBLE_MS);
@@ -454,7 +503,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     private void hideAlarm() {
         ui.removeCallbacks(clearAlarm);
-        alarmPanel.setVisibility(View.GONE);
+        restoreStatus();
     }
 
     private static void appendList(StringBuilder sb, String label, List<String> values) {
@@ -509,9 +558,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             return r;
         }
 
-        static Row stray(String epc) {
+        static Row stray(String label, String epc) {
             Row r = new Row();
-            r.label = epc;
+            r.label = label;
             r.epc = epc;
             r.stray = true;
 

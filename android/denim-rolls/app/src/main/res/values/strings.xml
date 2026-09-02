@@ -47,8 +47,10 @@
     <string name="scan_reading">Reading. Pass one roll at a time.</string>
     <string name="scan_stopped">Checking with the server…</string>
     <string name="scan_invalid_title">INVALID</string>
-    <string name="scan_invalid_body">This roll is not on document %1$s. Set it aside.\n%2$s</string>
+    <string name="scan_invalid_body">This roll is not on document %1$s. Set it aside.</string>
     <string name="scan_unknown_body">This EPC is not registered in the warehouse</string>
+    <string name="scan_no_silence">Nothing has been read for a moment. If a roll went past, its tag is not answering.</string>
+    <string name="scan_unknown_roll">UNKNOWN ROLL</string>
     <string name="scan_no_epc">Nothing was read. If a roll went through, it has no working tag.</string>
     <string name="scan_duplicate">Already read in this session</string>
     <string name="scan_confirm_stop">Finish this scan and send it to the server?</string>
@@ -99,7 +101,6 @@
     <string name="state_done">IN</string>
     <string name="state_waiting">WAITING</string>
     <string name="state_invalid">NOT ON LIST</string>
-    <string name="scan_last_tag">Last tag read: %1$s</string>
     <string name="profile">My profile</string>
     <string name="logout">Log out</string>
     <string name="users">Users</string>
@@ -124,4 +125,5 @@
     <string name="reset_password_for">New password for %1$s</string>
     <string name="password_set_for">Password set for %1$s</string>
     <string name="remove_user_confirm">Remove %1$s? If they have used the system, the account is switched off instead.</string>
+    <string name="status_alarm_line">%1$s — %2$s</string>
 </resources>

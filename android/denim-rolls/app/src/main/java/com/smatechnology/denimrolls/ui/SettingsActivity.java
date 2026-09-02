@@ -29,6 +29,7 @@ public final class SettingsActivity extends AppCompatActivity {
     private TextInputEditText powerField;
     private TextInputEditText antennaField;
     private TextInputEditText alarmField;
+    private TextInputEditText intervalField;
     private TextInputEditText noReadField;
     private MaterialSwitch soundSwitch;
 
@@ -45,6 +46,7 @@ public final class SettingsActivity extends AppCompatActivity {
         powerField = findViewById(R.id.rf_power);
         antennaField = findViewById(R.id.antenna_port);
         alarmField = findViewById(R.id.alarm_output);
+        intervalField = findViewById(R.id.read_interval);
         noReadField = findViewById(R.id.no_read_timeout);
         soundSwitch = findViewById(R.id.sound_enabled);
 
@@ -54,6 +56,7 @@ public final class SettingsActivity extends AppCompatActivity {
         powerField.setText(String.valueOf(settings.powerDbm()));
         antennaField.setText(String.valueOf(settings.antennaPort()));
         alarmField.setText(String.valueOf(settings.alarmOutput()));
+        intervalField.setText(String.valueOf(settings.readIntervalMs()));
         noReadField.setText(String.valueOf(settings.noReadTimeoutMs()));
         soundSwitch.setChecked(settings.soundEnabled());
 
@@ -75,6 +78,7 @@ public final class SettingsActivity extends AppCompatActivity {
         settings.setPowerDbm(number(powerField, AppSettings.DEFAULT_POWER_DBM));
         settings.setAntennaPort(number(antennaField, AppSettings.DEFAULT_ANTENNA));
         settings.setAlarmOutput(number(alarmField, AppSettings.DEFAULT_ALARM_OUTPUT));
+        settings.setReadIntervalMs(number(intervalField, AppSettings.DEFAULT_READ_INTERVAL_MS));
         settings.setNoReadTimeoutMs(number(noReadField, AppSettings.DEFAULT_NO_READ_TIMEOUT_MS));
         settings.setSoundEnabled(soundSwitch.isChecked());
 
@@ -83,6 +87,7 @@ public final class SettingsActivity extends AppCompatActivity {
         powerField.setText(String.valueOf(settings.powerDbm()));
         antennaField.setText(String.valueOf(settings.antennaPort()));
         alarmField.setText(String.valueOf(settings.alarmOutput()));
+        intervalField.setText(String.valueOf(settings.readIntervalMs()));
         noReadField.setText(String.valueOf(settings.noReadTimeoutMs()));
 
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
