@@ -111,9 +111,11 @@ public final class DocumentsActivity extends AppCompatActivity {
     /**
      * The account menu: who you are, and the two things you can do about it.
      *
-     * <p>Administrators also get the user list here. An operator never sees it,
-     * and nobody sees deployment settings: those belong to whoever installs
-     * the reader, not to the people who use it.
+     * <p>Administrators also get the user list and the reader's own settings.
+     * An operator sees neither: how this unit is wired and addressed belongs to
+     * whoever installs it. Before anyone has signed in at all, the same screen
+     * is reached by a long press on the logo, which is how a reader out of the
+     * box gets its server address in the first place.
      */
     private void showAccountMenu(View anchor) {
         android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor);
@@ -122,9 +124,10 @@ public final class DocumentsActivity extends AppCompatActivity {
 
         if (api.roles().contains("Administrator")) {
             menu.getMenu().add(0, 2, 1, R.string.users);
+            menu.getMenu().add(0, 4, 2, R.string.reader_settings);
         }
 
-        menu.getMenu().add(0, 3, 2, R.string.logout);
+        menu.getMenu().add(0, 3, 3, R.string.logout);
 
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
@@ -134,6 +137,10 @@ public final class DocumentsActivity extends AppCompatActivity {
 
                 case 2:
                     startActivity(new Intent(this, UsersActivity.class));
+                    return true;
+
+                case 4:
+                    startActivity(new Intent(this, SettingsActivity.class));
                     return true;
 
                 case 3:

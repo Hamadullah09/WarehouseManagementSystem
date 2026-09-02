@@ -164,6 +164,115 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!--
+          The gate input, kept in its own card. It is the only setting here
+          that depends on how the reader was physically wired, and the live
+          readout below it is how an installer finds out which terminal the
+          signal actually landed on.
+        -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/line"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/gpio_heading"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/ink" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/gpio_start"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/gpio_start"
+                    android:textColor="@color/ink" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/gpio_start_hint"
+                    android:textSize="13sp"
+                    android:textColor="@color/ink_muted" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:hint="@string/gpio_input"
+                    app:helperTextEnabled="true"
+                    app:helperText="@string/gpio_input_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/gpio_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/gpio_active_high"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/gpio_active_high"
+                    android:textColor="@color/ink" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/gpio_active_high_hint"
+                    android:textSize="13sp"
+                    android:textColor="@color/ink_muted" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/gpio_live"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.06"
+                    android:textColor="@color/ink_muted" />
+
+                <TextView
+                    android:id="@+id/gpio_live"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:padding="10dp"
+                    android:background="@color/info_soft"
+                    android:fontFamily="monospace"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/info" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/gpio_live_hint"
+                    android:textSize="13sp"
+                    android:textColor="@color/ink_muted" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/save"
             android:layout_width="match_parent"

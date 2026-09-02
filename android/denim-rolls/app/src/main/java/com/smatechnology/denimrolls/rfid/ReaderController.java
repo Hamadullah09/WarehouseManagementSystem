@@ -11,8 +11,10 @@ import com.rscja.deviceapi.entity.UHFTAGInfo;
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback;
 import com.smatechnology.denimrolls.data.AppSettings;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -234,9 +236,7 @@ public final class ReaderController {
         running.set(true);
         startPump();
 
-        if (listener != null) {
-            main.post(() -> listener.onInventoryStateChanged(true));
-        }
+        notifyInventoryState(true);
 
         return true;
     }
@@ -266,9 +266,17 @@ public final class ReaderController {
             release(queued);
         }
 
-        if (listener != null) {
-            main.post(() -> listener.onInventoryStateChanged(false));
-        }
+        notifyInventoryState(false);
+    }
+
+    private void notifyInventoryState(boolean inventorying) {
+        main.post(() -> {
+            Listener target = listener;
+
+            if (target != null) {
+                target.onInventoryStateChanged(inventorying);
+            }
+        });
     }
 
     /** Releases the module. Call from the owning screen's onDestroy. */
@@ -389,6 +397,12 @@ public final class ReaderController {
      * GPI arrives through a callback and inputStatus is not public. Polling
      * four times a second is far below anything a person can move a pallet
      * through, and costs nothing measurable.
+     *
+     * <p>The first reading is kept as the resting level and reported to
+     * nobody. An input with nothing wired to it sits high, so treating the
+     * first sample as a transition would start a scan the moment the sheet
+     * opened on a reader whose sensor has not been installed yet. Only a
+     * change is an edge.
      */
     public void startGateInputWatch() {
         if (!settings.gpioStartEnabled() || gpiWatcher != null) {
@@ -407,7 +421,9 @@ public final class ReaderController {
                 if (level != null) {
                     boolean active = activeHigh == level;
 
-                    if (lastGateSignal == null || lastGateSignal != active) {
+                    if (lastGateSignal == null) {
+                        lastGateSignal = active;
+                    } else if (lastGateSignal != active) {
                         lastGateSignal = active;
 
                         if (listener != null) {
@@ -430,6 +446,40 @@ public final class ReaderController {
             gpiWatcher = null;
             lastGateSignal = null;
         }
+    }
+
+    /**
+     * Every input the module reports, by pin name, in the order it gives them.
+     *
+     * <p>Exists so an installer can watch the pins change while a colleague
+     * triggers the gate, which is the only reliable way to find out which
+     * terminal the signal was actually landed on. Empty when the module is not
+     * open or the call fails: an empty map means "cannot tell", never "low".
+     */
+    public Map<String, Boolean> inputLevels() {
+        Map<String, Boolean> levels = new LinkedHashMap<>();
+
+        // Held locally: release() runs off the caller's thread and nulls the
+        // field.
+        final RFIDWithUHFA4 open = reader;
+
+        if (open == null) {
+            return levels;
+        }
+
+        try {
+            List<GPIStateEntity> states = open.inputStatus();
+
+            if (states != null) {
+                for (GPIStateEntity state : states) {
+                    levels.put(state.getGpiName(), state.getGpiState() != 0);
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "inputStatus failed", t);
+        }
+
+        return levels;
     }
 
     /** Current level of one input, or null when it cannot be read. */

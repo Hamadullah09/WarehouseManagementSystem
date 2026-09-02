@@ -104,6 +104,7 @@
     <string name="profile">My profile</string>
     <string name="logout">Log out</string>
     <string name="users">Users</string>
+    <string name="reader_settings">Reader settings</string>
     <string name="forgot_password">Forgot your password?</string>
     <string name="forgot_prompt">Enter your user name and your supervisor will be asked to set a new password.</string>
     <string name="change_password">Change password</string>
@@ -126,4 +127,16 @@
     <string name="password_set_for">Password set for %1$s</string>
     <string name="remove_user_confirm">Remove %1$s? If they have used the system, the account is switched off instead.</string>
     <string name="status_alarm_line">%1$s — %2$s</string>
+    <string name="gpio_heading">Gate signal (GPIO)</string>
+    <string name="gpio_start">Start and stop from the gate signal</string>
+    <string name="gpio_start_hint">Off: the operator uses the START and STOP buttons. On: the sensor on the gate runs the scan, and the buttons still work as well.</string>
+    <string name="gpio_input">Gate signal input (1 to 4)</string>
+    <string name="gpio_input_hint">Which of the four inputs the sensor is wired to. Input 1 is terminal pin 5, input 2 pin 17, input 3 pin 6, input 4 pin 18.</string>
+    <string name="gpio_active_high">12V on the input means the gate is active</string>
+    <string name="gpio_active_high_hint">Turn this off for a normally closed sensor, where losing the signal is what marks the gate active.</string>
+    <string name="gpio_live">Live inputs</string>
+    <string name="gpio_live_unavailable">Cannot read the inputs. The UHF module is not open, usually because another program is holding it.</string>
+    <string name="gpio_live_hint">An input with nothing wired to it sits HIGH, so it is the change that tells you something. Have someone trigger the gate and watch which input moves: that is the number to enter above, and which way it moves tells you how to set the switch.</string>
+    <string name="gpio_on">HIGH</string>
+    <string name="gpio_off">low</string>
 </resources>
