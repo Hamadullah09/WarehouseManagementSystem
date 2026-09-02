@@ -1,13 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-
-interface ImportResult {
-  totalRows: number
-  imported: number
-  updated: number
-  skipped: number
-  errors: { row: number; epc?: string; reason: string }[]
-}
+import type { EpcImportOutcome, GateSnapshot } from '../api/types'
 
 /**
  * CSV import for the EPC catalogue (§44).
@@ -19,9 +12,18 @@ interface ImportResult {
 export default function EpcImport() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [updateExisting, setUpdateExisting] = useState(false)
-  const [result, setResult] = useState<ImportResult | null>(null)
+  const [generateDocuments, setGenerateDocuments] = useState(false)
+  const [documentType, setDocumentType] = useState<'Inward' | 'Outward'>('Inward')
+  const [epcsPerDocument, setEpcsPerDocument] = useState(30)
+  const [gateCode, setGateCode] = useState('')
+  const [gates, setGates] = useState<GateSnapshot[]>([])
+  const [outcome, setOutcome] = useState<EpcImportOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    void api.gates().then(setGates).catch(() => setGates([]))
+  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,10 +33,16 @@ export default function EpcImport() {
 
     setBusy(true)
     setError(null)
-    setResult(null)
+    setOutcome(null)
 
     try {
-      setResult(await api.importEpcs(file, updateExisting))
+      setOutcome(await api.importEpcs(file, {
+        updateExisting,
+        generateDocuments,
+        documentType,
+        epcsPerDocument,
+        gateCode: gateCode || undefined,
+      }))
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -66,6 +74,55 @@ export default function EpcImport() {
           </label>
         </div>
 
+        <div className="field">
+          <label className="row" style={{ gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={generateDocuments}
+              onChange={(e) => setGenerateDocuments(e.target.checked)}
+              style={{ width: 'auto' }}
+            />
+            <span>Raise documents from these EPCs</span>
+          </label>
+        </div>
+
+        {generateDocuments && (
+          <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <div className="field" style={{ flex: '1 1 150px' }}>
+              <label htmlFor="doctype">Movement</label>
+              <select
+                id="doctype"
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value as 'Inward' | 'Outward')}
+              >
+                <option value="Inward">Inward</option>
+                <option value="Outward">Outward</option>
+              </select>
+            </div>
+
+            <div className="field" style={{ flex: '1 1 150px' }}>
+              <label htmlFor="perdoc">EPCs per document</label>
+              <input
+                id="perdoc"
+                type="number"
+                min={1}
+                value={epcsPerDocument}
+                onChange={(e) => setEpcsPerDocument(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="field" style={{ flex: '1 1 180px' }}>
+              <label htmlFor="gate">Release to gate</label>
+              <select id="gate" value={gateCode} onChange={(e) => setGateCode(e.target.value)}>
+                <option value="">Leave as drafts</option>
+                {gates.map((g) => (
+                  <option key={g.gateCode} value={g.gateCode}>{g.gateCode}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
           Expected headers: <code>Epc</code>, <code>ItemCode</code>, <code>ItemName</code>,{' '}
           <code>SerialNumber</code>, <code>CartonNumber</code>, <code>ProductCode</code>,{' '}
@@ -81,34 +138,66 @@ export default function EpcImport() {
         </div>
       </form>
 
-      {result && (
+      {outcome && (
         <>
           <h2>Result</h2>
 
           <div className="cards" style={{ maxWidth: 640 }}>
             <div className="card">
               <div className="card__label">Rows read</div>
-              <div className="card__value">{result.totalRows}</div>
+              <div className="card__value">{outcome.import.totalRows}</div>
             </div>
             <div className="card card--ok">
               <div className="card__label">Imported</div>
-              <div className="card__value">{result.imported}</div>
+              <div className="card__value">{outcome.import.imported}</div>
             </div>
             <div className="card">
               <div className="card__label">Updated</div>
-              <div className="card__value">{result.updated}</div>
+              <div className="card__value">{outcome.import.updated}</div>
             </div>
             <div className="card">
               <div className="card__label">Skipped</div>
-              <div className="card__value">{result.skipped}</div>
+              <div className="card__value">{outcome.import.skipped}</div>
             </div>
-            <div className={`card${result.errors.length > 0 ? ' card--bad' : ''}`}>
+            <div className={`card${outcome.import.errors.length > 0 ? ' card--bad' : ''}`}>
               <div className="card__label">Rejected</div>
-              <div className="card__value">{result.errors.length}</div>
+              <div className="card__value">{outcome.import.errors.length}</div>
             </div>
           </div>
 
-          {result.errors.length > 0 && (
+          {outcome.documents.length > 0 && (
+            <>
+              <h2>Documents raised</h2>
+              <p className="muted" style={{ fontSize: 13 }}>
+                Planned from the rows in this file, in the order the file listed them. The reader
+                app will pick these up on its next refresh.
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Document</th>
+                    <th>Movement</th>
+                    <th>Articles</th>
+                    <th>Units</th>
+                    <th>Gate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outcome.documents.map((d) => (
+                    <tr key={d.id}>
+                      <td className="mono">{d.documentNumber}</td>
+                      <td>{d.type}</td>
+                      <td>{d.expectedArticles}</td>
+                      <td>{d.expectedQuantity}</td>
+                      <td>{d.gateCode ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {outcome.import.errors.length > 0 && (
             <>
               <h2>Rejected rows</h2>
               <table>
@@ -120,7 +209,7 @@ export default function EpcImport() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.errors.map((e, i) => (
+                  {outcome.import.errors.map((e, i) => (
                     <tr key={`${e.row}-${i}`}>
                       <td>{e.row}</td>
                       <td className="mono">{e.epc ?? '—'}</td>

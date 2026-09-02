@@ -3,6 +3,7 @@ import type {
   Dashboard,
   DocumentDetail,
   DocumentSummary,
+  EpcImportOutcome,
   GateCycle,
   GateSnapshot,
   Paged,
@@ -131,6 +132,18 @@ export const api = {
 
   retryDocument: (id: number) => post<DocumentDetail>(`/api/documents/${id}/retry`),
 
+  updateDocument: (
+    id: number,
+    body: { reference?: string; notes?: string; epcs?: string[] },
+  ) => request<DocumentDetail>(`/api/documents/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+
+  deleteDocument: (id: number) =>
+    request<void>(`/api/documents/${id}`, { method: 'DELETE' }),
+
   readers: () => request<Reader[]>('/api/rfid/readers'),
   connectReader: (id: string) => post<unknown>(`/api/rfid/readers/${encodeURIComponent(id)}/connect`),
   disconnectReader: (id: string) =>
@@ -142,16 +155,34 @@ export const api = {
   acknowledgeAlarm: (id: number) => post<void>(`/api/alarms/${id}/acknowledge`),
   resolveAlarm: (id: number, notes: string) => post<void>(`/api/alarms/${id}/resolve`, { notes }),
 
-  importEpcs: (file: File, updateExisting: boolean) => {
+  /**
+   * Uploads a catalogue, optionally planning documents from what it brought in.
+   * Planning uses the file's own rows and order, not the whole catalogue, so an
+   * import never sweeps up stock the operator did not mention.
+   */
+  importEpcs: (
+    file: File,
+    options: {
+      updateExisting: boolean
+      generateDocuments?: boolean
+      documentType?: 'Inward' | 'Outward'
+      epcsPerDocument?: number
+      gateCode?: string
+    },
+  ) => {
     const form = new FormData()
     form.append('file', file)
 
-    return request<{
-      totalRows: number
-      imported: number
-      updated: number
-      skipped: number
-      errors: { row: number; epc?: string; reason: string }[]
-    }>(`/api/epcs/import?updateExisting=${updateExisting}`, { method: 'POST', body: form })
+    const query = new URLSearchParams({ updateExisting: String(options.updateExisting) })
+
+    if (options.generateDocuments) {
+      query.set('generateDocuments', 'true')
+      query.set('documentType', options.documentType ?? 'Inward')
+
+      if (options.epcsPerDocument) query.set('epcsPerDocument', String(options.epcsPerDocument))
+      if (options.gateCode) query.set('gateCode', options.gateCode)
+    }
+
+    return request<EpcImportOutcome>(`/api/epcs/import?${query}`, { method: 'POST', body: form })
   },
 }

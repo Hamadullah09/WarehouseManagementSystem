@@ -19,6 +19,22 @@ public sealed record CreateDocumentRequest
     public string? Notes { get; init; }
 }
 
+/// <summary>Changes an administrator may make to an existing document.</summary>
+public sealed record UpdateDocumentRequest
+{
+    public string? Reference { get; init; }
+
+    public string? Notes { get; init; }
+
+    /// <summary>
+    /// Replacement EPC list. Only accepted while the document is still a
+    /// draft: once it has been released to a gate, the expected set is what
+    /// gate cycles have been validated against, and rewriting it would make
+    /// the audit trail describe a document that never existed.
+    /// </summary>
+    public IReadOnlyList<string>? Epcs { get; init; }
+}
+
 /// <summary>Per-EPC line on a document.</summary>
 public sealed record DocumentItemDto
 {
@@ -55,6 +71,9 @@ public record DocumentSummaryDto
 
     public string? GateCode { get; init; }
 
+    /// <summary>Shown in the work list; often the only human-readable clue to what a document is.</summary>
+    public string? Reference { get; init; }
+
     public int ExpectedArticles { get; init; }
 
     public int DetectedArticles { get; init; }
@@ -77,8 +96,6 @@ public record DocumentSummaryDto
 /// <summary>Full document, including expected/detected/balance EPC breakdown (§45).</summary>
 public sealed record DocumentDetailDto : DocumentSummaryDto
 {
-    public string? Reference { get; init; }
-
     public string? Notes { get; init; }
 
     public IReadOnlyList<DocumentItemDto> Items { get; init; } = [];

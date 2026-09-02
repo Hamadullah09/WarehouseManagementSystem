@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Warehouse.Application.Abstractions;
 using Warehouse.Application.Alarms;
+using Warehouse.Application.Documents;
 using Warehouse.Application.Epcs;
 using Warehouse.Domain;
 using Warehouse.Domain.Entities;
@@ -164,10 +165,21 @@ public sealed record EpcTagDto
     public DateTimeOffset? LastMovementAt { get; init; }
 }
 
+/// <summary>What an import did: the rows, and any documents planned from them.</summary>
+public sealed record EpcImportOutcome
+{
+    public required EpcImportResult Import { get; init; }
+
+    public IReadOnlyList<DocumentSummaryDto> Documents { get; init; } = [];
+}
+
 [ApiController]
 [Route("api/epcs")]
 [Authorize]
-public sealed class EpcsController(IEpcImportService import, IWarehouseDbContext db) : ControllerBase
+public sealed class EpcsController(
+    IEpcImportService import,
+    IDocumentService documents,
+    IWarehouseDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(
@@ -237,10 +249,14 @@ public sealed class EpcsController(IEpcImportService import, IWarehouseDbContext
     [HttpPost("import")]
     [Authorize(Roles = $"{RoleNames.Administrator},{RoleNames.Supervisor}")]
     [RequestSizeLimit(32 * 1024 * 1024)]
-    [ProducesResponseType<EpcImportResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<EpcImportResult>> Import(
+    [ProducesResponseType<EpcImportOutcome>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<EpcImportOutcome>> Import(
         IFormFile file,
         [FromQuery] bool updateExisting = false,
+        [FromQuery] bool generateDocuments = false,
+        [FromQuery] DocumentType documentType = DocumentType.Inward,
+        [FromQuery] int epcsPerDocument = 0,
+        [FromQuery] string? gateCode = null,
         CancellationToken cancellationToken = default)
     {
         if (file is null || file.Length == 0)
@@ -253,9 +269,95 @@ public sealed class EpcsController(IEpcImportService import, IWarehouseDbContext
             });
         }
 
-        await using var stream = file.OpenReadStream();
+        List<string> imported;
+        EpcImportResult result;
 
-        return Ok(await import.ImportCsvAsync(stream, updateExisting, cancellationToken));
+        await using (var stream = file.OpenReadStream())
+        {
+            result = await import.ImportCsvAsync(stream, updateExisting, cancellationToken);
+        }
+
+        if (!generateDocuments || result.Imported + result.Updated == 0)
+        {
+            return Ok(new EpcImportOutcome { Import = result });
+        }
+
+        // Plan documents from exactly what the file brought in, in the order it
+        // brought it. Re-reading the whole catalogue would sweep up rolls the
+        // operator never mentioned.
+        await using (var replay = file.OpenReadStream())
+        {
+            imported = await ReadEpcColumnAsync(replay, cancellationToken);
+        }
+
+        var eligible = await db.EpcTags
+            .AsNoTracking()
+            .Where(t => imported.Contains(t.Epc) && t.IsActive)
+            .Where(t => documentType == DocumentType.Outward
+                ? t.Status == EpcStatus.InStock
+                : t.Status != EpcStatus.InStock)
+            .OrderBy(t => t.ItemCode)
+            .ThenBy(t => t.Epc)
+            .Select(t => t.Epc)
+            .ToListAsync(cancellationToken);
+
+        var size = epcsPerDocument > 0 ? epcsPerDocument : eligible.Count;
+        var created = new List<DocumentSummaryDto>();
+
+        for (var offset = 0; offset < eligible.Count; offset += size)
+        {
+            var chunk = eligible.Skip(offset).Take(size).ToList();
+
+            created.Add(await documents.CreateAsync(documentType, new CreateDocumentRequest
+            {
+                Epcs = chunk,
+                GateCode = gateCode,
+                Reference = $"Imported {file.FileName}",
+                Notes = $"Generated automatically from {file.FileName}"
+            }, cancellationToken));
+        }
+
+        return Ok(new EpcImportOutcome { Import = result, Documents = created });
+    }
+
+    /// <summary>Re-reads just the EPC column, so planning uses the file's own order.</summary>
+    private static async Task<List<string>> ReadEpcColumnAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var epcs = new List<string>();
+
+        using var reader = new StreamReader(stream);
+        var header = await reader.ReadLineAsync(cancellationToken);
+
+        if (header is null)
+        {
+            return epcs;
+        }
+
+        var columns = header.Split(',');
+        var index = Array.FindIndex(columns, c => c.Trim().Trim('"')
+            .Equals("Epc", StringComparison.OrdinalIgnoreCase));
+
+        if (index < 0)
+        {
+            index = 0;
+        }
+
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            var cells = line.Split(',');
+
+            if (index < cells.Length)
+            {
+                var epc = Epc.Normalize(cells[index].Trim().Trim('"'));
+
+                if (epc.Length > 0)
+                {
+                    epcs.Add(epc);
+                }
+            }
+        }
+
+        return epcs;
     }
 }
 

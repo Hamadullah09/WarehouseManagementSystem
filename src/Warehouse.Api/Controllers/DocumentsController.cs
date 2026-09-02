@@ -169,6 +169,27 @@ public sealed class DocumentsController(IDocumentService documents) : Controller
     /// Re-posting the same sessionKey returns the original verdict rather than
     /// double-counting the load.
     /// </remarks>
+    /// <summary>Edits a document. The EPC list may only change while it is a draft.</summary>
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = $"{RoleNames.Administrator},{RoleNames.Supervisor}")]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] UpdateDocumentRequest request,
+        CancellationToken cancellationToken)
+        => Ok(await documents.UpdateAsync(id, request, cancellationToken));
+
+    /// <summary>
+    /// Deletes a draft or cancelled document. Anything that has been through a
+    /// gate is cancelled rather than deleted, so its history survives.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = RoleNames.Administrator)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        await documents.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:int}/scan-sessions")]
     [Authorize]
     public async Task<IActionResult> SubmitScanSession(

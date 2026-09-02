@@ -29,6 +29,13 @@ public interface IDocumentService
     Task<DocumentDetailDto> CancelAsync(int id, string? reason, CancellationToken cancellationToken = default);
 
     Task<DocumentDetailDto> RetryAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<DocumentDetailDto> UpdateAsync(
+        int id,
+        UpdateDocumentRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(int id, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -456,6 +463,187 @@ public sealed class DocumentService(
         }
     }
 
+    public async Task<DocumentDetailDto> UpdateAsync(
+        int id,
+        UpdateDocumentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var document = await db.Documents
+            .Include(d => d.Items)
+            .FirstOrDefaultAsync(d => d.Id == id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new WarehouseValidationException($"Document {id} was not found.");
+
+        if (document.Status is DocumentStatus.Completed or DocumentStatus.Cancelled)
+        {
+            throw new WarehouseValidationException(
+                $"Document {document.DocumentNumber} is {document.Status} and cannot be edited.");
+        }
+
+        document.Reference = request.Reference ?? document.Reference;
+        document.Notes = request.Notes ?? document.Notes;
+
+        if (request.Epcs is { } replacement)
+        {
+            if (document.Status != DocumentStatus.Draft)
+            {
+                throw new WarehouseValidationException(
+                    $"Document {document.DocumentNumber} has been released. Its EPC list can no longer be changed; "
+                    + "cancel it and raise a new one instead.");
+            }
+
+            var resolved = await ResolveEpcsAsync(document.Type, replacement, cancellationToken)
+                .ConfigureAwait(false);
+
+            db.DocumentItems.RemoveRange(document.Items);
+            document.Items.Clear();
+
+            foreach (var tag in resolved)
+            {
+                document.Items.Add(new DocumentItem
+                {
+                    EpcTagId = tag.Id,
+                    Epc = tag.Epc,
+                    Quantity = tag.UnitQuantity
+                });
+            }
+
+            document.ExpectedArticles = resolved.Count;
+            document.ExpectedQuantity = resolved.Sum(t => t.UnitQuantity);
+        }
+
+        audit.Enlist(new AuditEntry
+        {
+            Action = AuditAction.SettingChanged,
+            DocumentId = document.Id,
+            DocumentNumber = document.DocumentNumber,
+            Result = "DOCUMENT_UPDATED",
+            Details = request.Epcs is null ? "details" : $"{document.ExpectedArticles} EPCs"
+        });
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return (await GetAsync(document.Id, cancellationToken).ConfigureAwait(false))!;
+    }
+
+    /// <summary>
+    /// Removes a document outright.
+    /// </summary>
+    /// <remarks>
+    /// Only a draft or a cancelled document may go. Anything that has been
+    /// through a gate is referenced by cycles, alarms and the movement ledger,
+    /// and deleting it would leave an audit trail pointing at nothing. Cancel
+    /// those instead -- that is what cancellation is for.
+    /// </remarks>
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var document = await db.Documents
+            .Include(d => d.Items)
+            .FirstOrDefaultAsync(d => d.Id == id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new WarehouseValidationException($"Document {id} was not found.");
+
+        if (document.Status is not (DocumentStatus.Draft or DocumentStatus.Cancelled))
+        {
+            throw new WarehouseValidationException(
+                $"Document {document.DocumentNumber} is {document.Status} and cannot be deleted. "
+                + "Cancel it instead, so its history stays intact.");
+        }
+
+        var hasCycles = await db.GateCycles.AnyAsync(c => c.DocumentId == id, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (hasCycles)
+        {
+            throw new WarehouseValidationException(
+                $"Document {document.DocumentNumber} has gate cycles recorded against it and cannot be deleted.");
+        }
+
+        if (document.GateId is { } gateId)
+        {
+            var gate = await db.Gates.FirstOrDefaultAsync(g => g.Id == gateId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (gate?.ActiveDocumentId == document.Id)
+            {
+                gate.ActiveDocumentId = null;
+            }
+        }
+
+        audit.Enlist(new AuditEntry
+        {
+            Action = AuditAction.DocumentCancelled,
+            DocumentId = document.Id,
+            DocumentNumber = document.DocumentNumber,
+            PreviousState = document.Status.ToString(),
+            Result = "DOCUMENT_DELETED"
+        });
+
+        db.DocumentItems.RemoveRange(document.Items);
+        db.Documents.Remove(document);
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Deleted document {DocumentNumber}", document.DocumentNumber);
+    }
+
+    /// <summary>Validates an EPC list for a document of the given type.</summary>
+    private async Task<List<EpcTag>> ResolveEpcsAsync(
+        DocumentType type,
+        IReadOnlyList<string> epcs,
+        CancellationToken cancellationToken)
+    {
+        var cfg = options.CurrentValue;
+
+        var normalised = epcs
+            .Select(Epc.Normalize)
+            .Where(e => e.Length > 0)
+            .Distinct(Epc.Comparer)
+            .ToList();
+
+        if (normalised.Count == 0)
+        {
+            throw new WarehouseValidationException("A document must contain at least one EPC.");
+        }
+
+        if (normalised.Count > cfg.MaxEpcsPerDocument)
+        {
+            throw new WarehouseValidationException(
+                $"A document may contain at most {cfg.MaxEpcsPerDocument} EPCs; {normalised.Count} were supplied.");
+        }
+
+        var tags = await db.EpcTags
+            .Where(t => normalised.Contains(t.Epc))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var found = tags.Select(t => t.Epc).ToHashSet(Epc.Comparer);
+        var missing = normalised.Where(e => !found.Contains(e)).ToList();
+
+        if (missing.Count > 0)
+        {
+            throw new WarehouseValidationException(
+                "One or more EPCs are not registered in the warehouse.", missing);
+        }
+
+        var wrongState = type == DocumentType.Outward
+            ? tags.Where(t => t.Status != EpcStatus.InStock).Select(t => t.Epc).ToList()
+            : tags.Where(t => t.Status == EpcStatus.InStock).Select(t => t.Epc).ToList();
+
+        if (wrongState.Count > 0)
+        {
+            var reason = type == DocumentType.Outward
+                ? "are not currently in stock and cannot be shipped"
+                : "are already in stock and cannot be received again";
+
+            throw new WarehouseValidationException($"One or more EPCs {reason}.", wrongState);
+        }
+
+        return tags;
+    }
+
     private async Task<Gate> FindGateAsync(string gateCode, CancellationToken cancellationToken)
     {
         var gate = await db.Gates.FirstOrDefaultAsync(g => g.Code == gateCode, cancellationToken)
@@ -489,6 +677,7 @@ public sealed class DocumentService(
         Status = d.Status,
         UserDisplayName = d.UserDisplayName,
         GateCode = d.Gate?.Code,
+        Reference = d.Reference,
         ExpectedArticles = d.ExpectedArticles,
         DetectedArticles = d.DetectedArticles,
         BalanceArticles = d.BalanceArticles,
@@ -525,6 +714,7 @@ public sealed class DocumentService(
             Status = d.Status,
             UserDisplayName = d.UserDisplayName,
             GateCode = d.Gate?.Code,
+            Reference = d.Reference,
             ExpectedArticles = d.ExpectedArticles,
             DetectedArticles = d.DetectedArticles,
             BalanceArticles = d.BalanceArticles,
@@ -537,7 +727,6 @@ public sealed class DocumentService(
             ReleasedAt = d.ReleasedAt,
             CancelledAt = d.CancelledAt,
             CancelledReason = d.CancelledReason,
-            Reference = d.Reference,
             Notes = d.Notes,
             Items = items,
             DetectedEpcs = items.Where(i => i.IsDetected).Select(i => i.Epc).ToList(),

@@ -125,13 +125,13 @@ export interface DocumentSummary {
   expectedQuantity: number
   detectedQuantity: number
   balanceQuantity: number
+  reference?: string | null
   retryCount: number
   createdAt: string
   completedAt?: string | null
 }
 
 export interface DocumentDetail extends DocumentSummary {
-  reference?: string | null
   notes?: string | null
   items: DocumentItem[]
   detectedEpcs: string[]
@@ -226,4 +226,16 @@ export interface Paged<T> {
   total: number
   page: number
   pageSize: number
+}
+
+/** Result of a catalogue import, plus any documents planned from it. */
+export interface EpcImportOutcome {
+  import: {
+    totalRows: number
+    imported: number
+    updated: number
+    skipped: number
+    errors: { row: number; epc?: string; reason: string }[]
+  }
+  documents: DocumentSummary[]
 }

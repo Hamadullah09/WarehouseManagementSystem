@@ -167,6 +167,24 @@ export default function Documents() {
                         </button>
 
                         <button
+                          onClick={() => {
+                            const reference = window.prompt(
+                              `Reference for ${d.documentNumber}`,
+                              d.reference ?? '',
+                            )
+
+                            if (reference !== null) {
+                              void act(
+                                () => api.updateDocument(d.id, { reference }),
+                                `${d.documentNumber} updated`,
+                              )
+                            }
+                          }}
+                        >
+                          Edit
+                        </button>
+
+                        <button
                           className="danger"
                           onClick={() => {
                             const reason = window.prompt(`Cancel ${d.documentNumber}? Reason:`)
@@ -181,6 +199,25 @@ export default function Documents() {
                           Cancel
                         </button>
                       </>
+                    )}
+
+                    {/* Only a draft or a cancelled document can go. Anything
+                        that has been through a gate is cancelled instead, so
+                        its cycles and alarms keep pointing at something. */}
+                    {(d.status === 'Draft' || d.status === 'Cancelled') && (
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          if (window.confirm(`Delete ${d.documentNumber} permanently?`)) {
+                            void act(
+                              () => api.deleteDocument(d.id),
+                              `${d.documentNumber} deleted`,
+                            )
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
                     )}
                   </div>
                 </td>
