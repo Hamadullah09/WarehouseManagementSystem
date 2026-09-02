@@ -54,8 +54,19 @@ public final class ReaderController {
 
     private static final String TAG = "ReaderController";
 
-    /** The module's buzzer is one short beep, so an alarm repeats it. */
-    private static final long BEEP_EVERY_MS = 500L;
+    /**
+     * The buzzer has one tone and no way to change it, so the three signals
+     * are told apart by rhythm instead: how many beeps, and how fast.
+     *
+     * <p>Each array is the silence after each beep, and the motif repeats for
+     * as long as the alarm lasts. A fast four means stop what you are doing;
+     * a slow two means nothing came through. Counting is something a person
+     * does without thinking, which is more than can be said for comparing two
+     * beeps of identical pitch.
+     */
+    private static final long[] WRONG_ROLL_BEEPS = {150, 150, 150, 850};
+
+    private static final long[] NO_TAG_BEEPS = {480, 1000};
 
     /**
      * How often the gate input is sampled. A roll can cross in about a
@@ -128,6 +139,9 @@ public final class ReaderController {
 
     /** True while an alarm is still sounding. Read from more than one thread. */
     private volatile boolean alarming;
+
+    /** True when the alarm sounding is about a roll, not about silence. */
+    private volatile boolean alarmIsWrongRoll;
 
     private Runnable alarmDone;
     private Boolean lastGateSignal;
@@ -563,22 +577,48 @@ public final class ReaderController {
 
         sounds.accepted();
 
+        // A good roll answers a complaint about silence, so that alarm stops.
+        // It does not answer a wrong roll: that one is still on the pallet and
+        // still has to come off, so its alarm runs its course and the single
+        // beep is skipped rather than lost inside the trill.
+        if (alarming) {
+            if (alarmIsWrongRoll) {
+                return;
+            }
+
+            cancelAlarm();
+        }
+
+        // One beep, and nothing else: no repeat, no beacon. Whatever
+        // successNotify() does is the vendor's business and undocumented, so
+        // the count stays under this app's control.
+        beep();
+    }
+
+    private void beep() {
+        // Logged so the rhythm can be checked from a logcat timeline. Sound
+        // is the one thing that cannot be verified from a screenshot, and
+        // "it all sounds the same" is hard to act on without knowing whether
+        // the beeps went out at all.
+        Log.d(TAG, "beep");
+
         try {
             if (reader != null) {
-                reader.successNotify();
+                reader.buzzer();
+                reader.led();
             }
         } catch (Throwable t) {
-            Log.w(TAG, "successNotify failed", t);
+            Log.w(TAG, "buzzer failed", t);
         }
     }
 
-    /** A roll that is not on this document: low, sustained, unmistakable. */
+    /** A roll that is not on this document: four fast beeps, over and over. */
     public void signalWrongRoll() {
         if (settings.soundEnabled()) {
             sounds.wrongRoll();
         }
 
-        signalAlarm();
+        signalAlarm(WRONG_ROLL_BEEPS, true);
     }
 
     /**
@@ -600,7 +640,7 @@ public final class ReaderController {
             sounds.noTag();
         }
 
-        signalAlarm();
+        signalAlarm(NO_TAG_BEEPS, false);
     }
 
     public boolean isAlarming() {
@@ -621,6 +661,10 @@ public final class ReaderController {
      * for ever.
      */
     public void signalAlarm() {
+        signalAlarm(NO_TAG_BEEPS, false);
+    }
+
+    private void signalAlarm(final long[] rhythm, boolean wrongRoll) {
         final int millis = settings.alarmMillis();
         final int line = settings.alarmOutput();
         final long until = System.currentTimeMillis() + millis;
@@ -628,24 +672,20 @@ public final class ReaderController {
         cancelAlarm();
 
         alarming = true;
+        alarmIsWrongRoll = wrongRoll;
         alarmDone = () -> alarming = false;
         main.postDelayed(alarmDone, millis);
 
         if (settings.soundEnabled()) {
             alarmBeep = new Runnable() {
+                private int at;
+
                 @Override
                 public void run() {
-                    try {
-                        if (reader != null) {
-                            reader.buzzer();
-                            reader.led();
-                        }
-                    } catch (Throwable t) {
-                        Log.w(TAG, "buzzer failed", t);
-                    }
+                    beep();
 
                     if (System.currentTimeMillis() < until) {
-                        main.postDelayed(this, BEEP_EVERY_MS);
+                        main.postDelayed(this, rhythm[at++ % rhythm.length]);
                     }
                 }
             };
@@ -677,6 +717,7 @@ public final class ReaderController {
     /** Silences an alarm that is still running. */
     public void cancelAlarm() {
         alarming = false;
+        alarmIsWrongRoll = false;
 
         if (alarmDone != null) {
             main.removeCallbacks(alarmDone);
