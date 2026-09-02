@@ -47,6 +47,18 @@ public final class ReaderController {
 
     private static final String TAG = "ReaderController";
 
+    /**
+     * Nearly every failure to open the module has the same cause, so the
+     * message says what to do about it rather than restating that something
+     * went wrong. Only one program can hold the UHF module: if the built-in
+     * transmission service (the one serving ports 9160/9260/8080) is running,
+     * this app cannot have it, and the reverse is equally true.
+     */
+    private static final String MODULE_BUSY =
+            "The RFID module is being used by another program.\n\n"
+            + "Only one program can use it at a time. On the reader, open "
+            + "\"UHF service\" and stop it, then press START again.";
+
     public interface Listener {
 
         /** The module opened. Version is whatever the SDK reports. */
@@ -116,7 +128,7 @@ public final class ReaderController {
 
             if (!reader.init(context)) {
                 healthy.set(false);
-                report("The RFID module did not start. Close the app and try again.");
+                report(MODULE_BUSY);
 
                 return false;
             }
@@ -138,7 +150,7 @@ public final class ReaderController {
             // Throwable: a missing native library arrives as UnsatisfiedLinkError.
             Log.e(TAG, "init failed", t);
             healthy.set(false);
-            report("The RFID module could not be opened: " + describe(t));
+            report(MODULE_BUSY + "\n\n(" + describe(t) + ")");
 
             return false;
         }
@@ -192,14 +204,14 @@ public final class ReaderController {
         try {
             if (!reader.startInventoryTag()) {
                 healthy.set(false);
-                report("The reader refused to start scanning.");
+                report(MODULE_BUSY);
 
                 return false;
             }
         } catch (Throwable t) {
             Log.e(TAG, "startInventoryTag failed", t);
             healthy.set(false);
-            report("The reader could not start scanning: " + describe(t));
+            report(MODULE_BUSY + "\n\n(" + describe(t) + ")");
 
             return false;
         }

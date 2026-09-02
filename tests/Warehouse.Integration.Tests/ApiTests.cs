@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -29,9 +30,21 @@ public sealed class WarehouseApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _database = $"api-tests-{Guid.NewGuid():N}";
 
+    /// <summary>Credentials this factory seeds, so no test hardcodes a deployment password.</summary>
+    public const string AdminUser = "integration-admin";
+
+    public const string AdminPassword = "integration-test-password";
+
     protected override IHost CreateHost(IHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+
+        builder.ConfigureAppConfiguration(config => config.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["Seed:AdminUserName"] = AdminUser,
+                ["Seed:AdminPassword"] = AdminPassword
+            }));
 
         builder.ConfigureServices(services =>
         {
@@ -110,7 +123,7 @@ public class ApiTests(WarehouseApiFactory factory) : IClassFixture<WarehouseApiF
     public async Task Seeded_administrator_can_sign_in_and_must_change_its_password()
     {
         var response = await Client.PostAsJsonAsync(
-            "/api/auth/login", new { userName = "admin", password = "ChangeMe.Development.1" });
+            "/api/auth/login", new { userName = WarehouseApiFactory.AdminUser, password = WarehouseApiFactory.AdminPassword });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -168,7 +181,7 @@ public class ApiTests(WarehouseApiFactory factory) : IClassFixture<WarehouseApiF
         var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/login", new { userName = "admin", password = "ChangeMe.Development.1" });
+            "/api/auth/login", new { userName = WarehouseApiFactory.AdminUser, password = WarehouseApiFactory.AdminPassword });
 
         var session = await response.Content.ReadFromJsonAsync<LoginResult>();
 

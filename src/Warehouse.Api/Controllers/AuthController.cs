@@ -40,7 +40,10 @@ public sealed record ChangePasswordRequest
     public string CurrentPassword { get; init; } = string.Empty;
 
     [Required]
-    [MinLength(12)]
+    // Length is enforced by AuthService against the configured policy, not by
+    // a constant here. Two independent minimums drift apart, and the model
+    // binder's message would contradict the service's.
+    [MinLength(1)]
     [MaxLength(256)]
     public string NewPassword { get; init; } = string.Empty;
 }

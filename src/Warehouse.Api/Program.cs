@@ -48,6 +48,10 @@ builder.Services.AddOptions<AlarmOptions>()
     .Bind(builder.Configuration.GetSection(AlarmOptions.SectionName))
     .ValidateOnStart();
 
+builder.Services.AddOptions<SecurityOptions>()
+    .Bind(builder.Configuration.GetSection(SecurityOptions.SectionName))
+    .ValidateDataAnnotations();
+
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .ValidateDataAnnotations()

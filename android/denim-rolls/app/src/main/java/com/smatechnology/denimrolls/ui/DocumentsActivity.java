@@ -196,10 +196,28 @@ public final class DocumentsActivity extends AppCompatActivity {
                 stripe = view.findViewById(R.id.stripe);
             }
 
+            private String describe(DocumentSummary d) {
+                int done = d.detectedArticles;
+                int total = d.expectedArticles;
+
+                switch (d.status) {
+                    case "Draft":      return getString(R.string.status_draft);
+                    case "Released":   return getString(R.string.status_released);
+                    case "InProgress": return getString(R.string.doc_progress, done, total);
+                    case "Completed":  return getString(R.string.status_completed);
+                    case "Cancelled":  return getString(R.string.status_cancelled);
+                    case "Failed":     return getString(R.string.status_failed);
+                    default:           return d.status;
+                }
+            }
+
             void bind(DocumentSummary d) {
                 number.setText(d.documentNumber);
                 type.setText(d.type.toUpperCase(Locale.US));
-                status.setText(d.status);
+
+                // The server's own words are engineering states. Say what they
+                // mean to somebody standing at a gate instead.
+                status.setText(describe(d));
 
                 articles.setText(String.format(Locale.US, "%d", d.expectedArticles));
                 quantity.setText(String.format(Locale.US, "%d", d.expectedQuantity));

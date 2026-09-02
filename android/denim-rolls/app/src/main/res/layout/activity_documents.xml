@@ -17,9 +17,9 @@
         android:elevation="2dp">
 
         <ImageView
-            android:layout_width="44dp"
-            android:layout_height="30dp"
-            android:src="@drawable/brand_logo"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:src="@drawable/brand_mark"
             android:scaleType="fitCenter"
             android:importantForAccessibility="no" />
 

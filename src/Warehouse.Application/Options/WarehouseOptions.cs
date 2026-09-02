@@ -97,3 +97,29 @@ public sealed class AlarmOptions
     /// <summary>Require a supervisor role to resolve alarms.</summary>
     public bool RequireSupervisorToResolve { get; set; } = true;
 }
+
+/// <summary>Authentication policy. Values a site may reasonably differ on (§34).</summary>
+public sealed class SecurityOptions
+{
+    public const string SectionName = "Security";
+
+    /// <summary>
+    /// Shortest password accepted when a user changes their own.
+    /// </summary>
+    /// <remarks>
+    /// Twelve is the default because a warehouse account that can move stock
+    /// deserves it. Sites running on a closed network behind a door sometimes
+    /// choose shorter; that is their call to make in configuration, not one to
+    /// bake into the build.
+    /// </remarks>
+    [Range(4, 128)]
+    public int MinimumPasswordLength { get; set; } = 12;
+
+    /// <summary>Failed attempts before the account is locked.</summary>
+    [Range(1, 100)]
+    public int MaxFailedAttempts { get; set; } = 5;
+
+    /// <summary>How long a lockout lasts, in minutes.</summary>
+    [Range(1, 1440)]
+    public int LockoutMinutes { get; set; } = 15;
+}

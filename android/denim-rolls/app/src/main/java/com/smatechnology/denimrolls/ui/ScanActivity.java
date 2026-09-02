@@ -83,6 +83,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private TextView alarmBody;
     private MaterialButton startButton;
     private MaterialButton stopButton;
+    private TextView progressText;
+    private com.google.android.material.progressindicator.LinearProgressIndicator progressBar;
+    private TextView controlHelp;
     private RowAdapter adapter;
 
     @Override
@@ -123,6 +126,11 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         alarmBody = findViewById(R.id.alarm_body);
         startButton = findViewById(R.id.start);
         stopButton = findViewById(R.id.stop);
+        progressText = findViewById(R.id.progress_text);
+        progressBar = findViewById(R.id.progress_bar);
+        controlHelp = findViewById(R.id.control_help);
+
+        findViewById(R.id.alarm_dismiss).setOnClickListener(v -> hideAlarm());
 
         RecyclerView list = findViewById(R.id.rolls);
         list.setLayoutManager(new LinearLayoutManager(this));
@@ -181,8 +189,15 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     }
 
     private void updateBalances() {
-        balanceArticles.setText(String.valueOf(document.outstanding()));
+        int outstanding = document.outstanding();
+        int total = document.items.size();
+        int done = total - outstanding;
+
+        balanceArticles.setText(String.valueOf(outstanding));
         balanceQuantity.setText(String.valueOf(document.outstandingQuantity()));
+
+        progressText.setText(getString(R.string.scan_progress, done, total));
+        progressBar.setProgress(total == 0 ? 0 : (done * 100) / total);
     }
 
     // -------------------------------------------------------------- session
@@ -211,6 +226,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
         startButton.setVisibility(View.GONE);
         stopButton.setVisibility(View.VISIBLE);
+        controlHelp.setText(R.string.scan_help_stop);
 
         setStatus(getString(R.string.scan_reading), R.color.info);
     }
@@ -229,6 +245,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         startButton.setVisibility(View.VISIBLE);
         stopButton.setVisibility(View.GONE);
         startButton.setEnabled(false);
+        controlHelp.setText(R.string.scan_help_start);
 
         setStatus(getString(R.string.scan_stopped), R.color.warn);
 

@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Warehouse.Application.Abstractions;
 using Warehouse.Application.Audit;
+using Warehouse.Application.Options;
 using Warehouse.Domain;
 using Warehouse.Domain.Entities;
 
@@ -43,10 +45,9 @@ public sealed class AuthService(
     IWarehouseDbContext db,
     IClock clock,
     IAuditService audit,
+    IOptionsMonitor<SecurityOptions> security,
     ILogger<AuthService> logger) : IAuthService
 {
-    private const int MaxFailedAttempts = 5;
-    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
     public async Task<AuthenticatedUser?> AuthenticateAsync(
         string userName,
@@ -87,9 +88,9 @@ public sealed class AuthService(
         {
             user.FailedLoginCount++;
 
-            if (user.FailedLoginCount >= MaxFailedAttempts)
+            if (user.FailedLoginCount >= security.CurrentValue.MaxFailedAttempts)
             {
-                user.LockedOutUntil = now.Add(LockoutDuration);
+                user.LockedOutUntil = now.AddMinutes(security.CurrentValue.LockoutMinutes);
                 user.FailedLoginCount = 0;
 
                 logger.LogWarning(
@@ -130,9 +131,12 @@ public sealed class AuthService(
         string newPassword,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 12)
+        var minimum = security.CurrentValue.MinimumPasswordLength;
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < minimum)
         {
-            throw new ArgumentException("The new password must be at least 12 characters.", nameof(newPassword));
+            throw new ArgumentException(
+                $"The new password must be at least {minimum} characters.", nameof(newPassword));
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)

@@ -165,6 +165,35 @@
         </LinearLayout>
     </LinearLayout>
 
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="14dp">
+
+        <TextView
+            android:id="@+id/progress_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/scan_text" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            app:trackThickness="10dp"
+            app:trackCornerRadius="5dp"
+            app:indicatorColor="@color/ok"
+            app:trackColor="@color/scan_line"
+            android:max="100"
+            android:progress="0" />
+    </LinearLayout>
+
     <!-- Status band -->
     <LinearLayout
         android:id="@+id/status_panel"
@@ -223,6 +252,16 @@
             android:layout_marginTop="2dp"
             android:textSize="14sp"
             android:textColor="#FFFFFF" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/alarm_dismiss"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="@string/scan_dismiss"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <TextView
@@ -246,9 +285,18 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:padding="14dp"
         android:background="@color/scan_surface">
+
+        <TextView
+            android:id="@+id/control_help"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/scan_help_start"
+            android:textSize="13sp"
+            android:textColor="@color/scan_muted" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/start"

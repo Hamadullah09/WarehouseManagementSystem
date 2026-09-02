@@ -17,9 +17,9 @@
         <!-- Sized in dp rather than stretched: the mark stays legible on a
              handheld and on a 720p panel without a second asset. -->
         <ImageView
-            android:layout_width="220dp"
-            android:layout_height="92dp"
-            android:src="@drawable/brand_logo"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:src="@drawable/brand_mark"
             android:adjustViewBounds="true"
             android:scaleType="fitCenter"
             android:importantForAccessibility="no" />
