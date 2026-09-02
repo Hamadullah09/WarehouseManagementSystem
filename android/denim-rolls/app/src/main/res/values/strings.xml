@@ -84,4 +84,8 @@
     <string name="status_cancelled">Cancelled</string>
     <string name="status_failed">Needs attention</string>
     <string name="scan_help_stop">Reading. Press STOP when the last roll has passed.</string>
+    <string name="scan_no_tag_title">NO TAG</string>
+    <string name="no_read_timeout">No-tag alarm after (ms)</string>
+    <string name="settings_hint_noread">Alarm if nothing is read for this long while scanning. 0 turns it off.</string>
+    <string name="scan_totals_line">%1$d articles &#183; %2$d units</string>
 </resources>

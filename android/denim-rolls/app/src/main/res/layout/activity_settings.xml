@@ -138,6 +138,22 @@
                         android:inputType="number" />
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/no_read_timeout"
+                    app:helperTextEnabled="true"
+                    app:helperText="@string/settings_hint_noread">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/no_read_timeout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number" />
+                </com.google.android.material.textfield.TextInputLayout>
+
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/sound_enabled"
                     android:layout_width="match_parent"

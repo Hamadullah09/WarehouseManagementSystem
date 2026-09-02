@@ -63,6 +63,11 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private ReaderController reader;
     private DocumentDetail document;
 
+    private final android.os.Handler watchdog = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable silenceCheck;
+    private long lastReadAt;
+    private boolean silenceReported;
+
     private int documentId;
     private long sessionStartedAt;
     private String sessionKey;
@@ -73,6 +78,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private TextView userName;
     private TextView totalArticles;
     private TextView totalQuantity;
+    private TextView totalsLine;
     private TextView balanceArticles;
     private TextView balanceQuantity;
     private TextView statusText;
@@ -115,7 +121,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         movement = findViewById(R.id.movement);
         userName = findViewById(R.id.user_name);
         totalArticles = findViewById(R.id.total_articles);
-        totalQuantity = findViewById(R.id.total_quantity);
+        totalQuantity = findViewById(R.id.total_quantity);   // portrait only
+        totalsLine = findViewById(R.id.totals_line);         // landscape only
         balanceArticles = findViewById(R.id.balance_articles);
         balanceQuantity = findViewById(R.id.balance_quantity);
         statusText = findViewById(R.id.status_text);
@@ -128,7 +135,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         stopButton = findViewById(R.id.stop);
         progressText = findViewById(R.id.progress_text);
         progressBar = findViewById(R.id.progress_bar);
-        controlHelp = findViewById(R.id.control_help);
+        controlHelp = findViewById(R.id.control_help); // absent in landscape
 
         findViewById(R.id.alarm_dismiss).setOnClickListener(v -> hideAlarm());
 
@@ -143,7 +150,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     // ------------------------------------------------------------- document
 
     private void loadDocument() {
-        setStatus(getString(R.string.scan_loading), R.color.scan_surface);
+        setStatus(getString(R.string.scan_loading), R.color.scan_muted);
 
         io.execute(() -> {
             try {
@@ -166,16 +173,32 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private void renderDocument() {
         documentNumber.setText(document.documentNumber);
         movement.setText(document.type.toUpperCase(Locale.US));
-        movement.setBackgroundColor(getColor(document.isInward() ? R.color.ok : R.color.info));
+        movement.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getColor(document.isInward() ? R.color.ok : R.color.info)));
 
-        totalArticles.setText(String.valueOf(document.expectedArticles));
-        totalQuantity.setText(String.valueOf(document.expectedQuantity));
+        showTotals();
 
         rebuildRows();
         updateBalances();
 
-        setStatus(getString(R.string.scan_ready), R.color.scan_surface);
+        setStatus(getString(R.string.scan_ready), R.color.scan_text);
         startButton.setEnabled(true);
+    }
+
+    /** Landscape shows totals on the header line; portrait gives them their own tiles. */
+    private void showTotals() {
+        if (totalsLine != null) {
+            totalsLine.setText(getString(R.string.scan_totals_line,
+                    document.expectedArticles, document.expectedQuantity));
+        }
+
+        if (totalArticles != null) {
+            totalArticles.setText(String.valueOf(document.expectedArticles));
+        }
+
+        if (totalQuantity != null) {
+            totalQuantity.setText(String.valueOf(document.expectedQuantity));
+        }
     }
 
     private void rebuildRows() {
@@ -226,9 +249,12 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
         startButton.setVisibility(View.GONE);
         stopButton.setVisibility(View.VISIBLE);
-        controlHelp.setText(R.string.scan_help_stop);
+        if (controlHelp != null) {
+            controlHelp.setText(R.string.scan_help_stop);
+        }
 
         setStatus(getString(R.string.scan_reading), R.color.info);
+        armSilenceWatchdog();
     }
 
     private void confirmStop() {
@@ -240,12 +266,15 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     }
 
     private void stopSession() {
+        disarmSilenceWatchdog();
         reader.stop();
 
         startButton.setVisibility(View.VISIBLE);
         stopButton.setVisibility(View.GONE);
         startButton.setEnabled(false);
-        controlHelp.setText(R.string.scan_help_start);
+        if (controlHelp != null) {
+            controlHelp.setText(R.string.scan_help_start);
+        }
 
         setStatus(getString(R.string.scan_stopped), R.color.warn);
 
@@ -256,6 +285,55 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         }
 
         submitSession();
+    }
+
+    /**
+     * Warns when nothing has been read for the configured window.
+     *
+     * <p>A roll going past without a readable tag looks exactly like silence,
+     * so silence is what gets watched. It fires once per quiet spell rather
+     * than every tick: an operator who has already been told does not need
+     * telling four times a second, and a latched beacon tells them nothing new.
+     */
+    private void armSilenceWatchdog() {
+        final int timeout = settings.noReadTimeoutMs();
+
+        if (timeout <= 0) {
+            return;
+        }
+
+        lastReadAt = System.currentTimeMillis();
+        silenceReported = false;
+
+        silenceCheck = new Runnable() {
+            @Override
+            public void run() {
+                if (!reader.isRunning()) {
+                    return;
+                }
+
+                long quiet = System.currentTimeMillis() - lastReadAt;
+
+                if (quiet >= timeout && !silenceReported) {
+                    silenceReported = true;
+                    sessionHadAlarm = true;
+
+                    reader.signalAlarm();
+                    showAlarm(getString(R.string.scan_no_tag_title), getString(R.string.scan_no_epc));
+                }
+
+                watchdog.postDelayed(this, Math.max(200, timeout / 4));
+            }
+        };
+
+        watchdog.postDelayed(silenceCheck, timeout);
+    }
+
+    private void disarmSilenceWatchdog() {
+        if (silenceCheck != null) {
+            watchdog.removeCallbacks(silenceCheck);
+            silenceCheck = null;
+        }
     }
 
     private void submitSession() {
@@ -322,8 +400,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
                 runOnUiThread(() -> {
                     document = loaded;
                     documentNumber.setText(document.documentNumber);
-                    totalArticles.setText(String.valueOf(document.expectedArticles));
-                    totalQuantity.setText(String.valueOf(document.expectedQuantity));
+                    showTotals();
                     rebuildRows();
                     updateBalances();
                 });
@@ -359,6 +436,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         }
 
         lastEpc.setText(epc);
+        lastReadAt = System.currentTimeMillis();
+        silenceReported = false;
 
         if (!accepted.add(epc)) {
             return;
@@ -373,7 +452,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             sessionHadAlarm = true;
             reader.signalAlarm();
             showAlarm(getString(R.string.scan_invalid_title),
-                    getString(R.string.scan_invalid_body, document.documentNumber) + "\n\n" + epc);
+                    getString(R.string.scan_invalid_body, document.documentNumber));
 
             rows.add(0, Row.stray(epc));
             adapter.notifyItemInserted(0);
@@ -396,7 +475,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     private void setStatus(String text, int colourRes) {
         statusText.setText(text);
-        statusPanel.setBackgroundColor(getColor(colourRes));
+        statusText.setTextColor(getColor(colourRes));
     }
 
     private void showAlarm(String title, String body) {
@@ -434,6 +513,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     @Override
     protected void onDestroy() {
+        disarmSilenceWatchdog();
         reader.release();
         io.shutdownNow();
         super.onDestroy();

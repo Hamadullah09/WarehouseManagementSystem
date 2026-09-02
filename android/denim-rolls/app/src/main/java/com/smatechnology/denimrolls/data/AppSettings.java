@@ -29,9 +29,17 @@ public final class AppSettings {
     private static final String KEY_ANTENNA = "antenna_port";
     private static final String KEY_ALARM_OUTPUT = "alarm_output";
     private static final String KEY_SOUND = "sound_enabled";
+    private static final String KEY_NO_READ = "no_read_timeout_ms";
 
     /** One accepted EPC per second, as the gate procedure requires. */
     public static final int DEFAULT_READ_INTERVAL_MS = 1000;
+
+    /**
+     * Silence, in milliseconds, that counts as "something went past without a
+     * readable tag". Matched to the read interval by default: if a roll should
+     * arrive every second and none does, that is worth an alarm.
+     */
+    public static final int DEFAULT_NO_READ_TIMEOUT_MS = 1000;
 
     public static final int DEFAULT_POWER_DBM = 25;
     public static final int DEFAULT_ANTENNA = 1;
@@ -100,6 +108,19 @@ public final class AppSettings {
 
     public void setReadIntervalMs(int value) {
         prefs.edit().putInt(KEY_READ_INTERVAL, Math.max(0, value)).apply();
+    }
+
+    /**
+     * How long the reader may go without seeing a tag, mid-scan, before the
+     * alarm sounds and the beacon output fires. Zero disables the check, which
+     * suits a gate where rolls arrive in bursts with long gaps between.
+     */
+    public int noReadTimeoutMs() {
+        return prefs.getInt(KEY_NO_READ, DEFAULT_NO_READ_TIMEOUT_MS);
+    }
+
+    public void setNoReadTimeoutMs(int value) {
+        prefs.edit().putInt(KEY_NO_READ, Math.max(0, value)).apply();
     }
 
     /** Transmit power in dBm. The U300 accepts 1-30. */
