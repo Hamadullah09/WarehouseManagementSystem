@@ -123,6 +123,13 @@ public final class ReaderController {
     private Runnable gpiWatcher;
     private Runnable alarmBeep;
     private Runnable alarmRelease;
+
+    private final Sounds sounds = new Sounds();
+
+    /** True while an alarm is still sounding. Read from more than one thread. */
+    private volatile boolean alarming;
+
+    private Runnable alarmDone;
     private Boolean lastGateSignal;
 
     public ReaderController(Context context) {
@@ -310,6 +317,7 @@ public final class ReaderController {
     /** Releases the module. Call from the owning screen's onDestroy. */
     public void release() {
         stopGateInputWatch();
+        sounds.release();
         cancelAlarm();
         powerGate(false);
         stop();
@@ -539,11 +547,21 @@ public final class ReaderController {
 
     // ---------------------------------------------------------------- output
 
-    /** Short confirmation for a roll that belongs to the document. */
+    /**
+     * A roll that belongs on the document: a rising pair, and nothing else.
+     *
+     * <p>Deliberately unlike the two alarms in every way available -- rising
+     * rather than falling, short rather than sustained, speaker only with no
+     * beacon and no reader buzzer. The one complaint that matters about a
+     * gate is not being able to tell a good roll from a bad one without
+     * looking up.
+     */
     public void signalAccepted() {
         if (!settings.soundEnabled()) {
             return;
         }
+
+        sounds.accepted();
 
         try {
             if (reader != null) {
@@ -552,6 +570,41 @@ public final class ReaderController {
         } catch (Throwable t) {
             Log.w(TAG, "successNotify failed", t);
         }
+    }
+
+    /** A roll that is not on this document: low, sustained, unmistakable. */
+    public void signalWrongRoll() {
+        if (settings.soundEnabled()) {
+            sounds.wrongRoll();
+        }
+
+        signalAlarm();
+    }
+
+    /**
+     * A roll went past and nothing answered.
+     *
+     * <p>Does not interrupt an alarm that is still sounding. Empty reads come
+     * one after another while the gate is quiet, and restarting the alarm on
+     * every one would make a continuous noise that says nothing. Skipping
+     * instead gives one alarm per alarm length, which is a rhythm rather than
+     * a wall, and it keeps going until something is read or the operator
+     * presses STOP.
+     */
+    public void signalNoTag() {
+        if (alarming) {
+            return;
+        }
+
+        if (settings.soundEnabled()) {
+            sounds.noTag();
+        }
+
+        signalAlarm();
+    }
+
+    public boolean isAlarming() {
+        return alarming;
     }
 
     /**
@@ -573,6 +626,10 @@ public final class ReaderController {
         final long until = System.currentTimeMillis() + millis;
 
         cancelAlarm();
+
+        alarming = true;
+        alarmDone = () -> alarming = false;
+        main.postDelayed(alarmDone, millis);
 
         if (settings.soundEnabled()) {
             alarmBeep = new Runnable() {
@@ -619,6 +676,13 @@ public final class ReaderController {
 
     /** Silences an alarm that is still running. */
     public void cancelAlarm() {
+        alarming = false;
+
+        if (alarmDone != null) {
+            main.removeCallbacks(alarmDone);
+            alarmDone = null;
+        }
+
         if (alarmBeep != null) {
             main.removeCallbacks(alarmBeep);
             alarmBeep = null;

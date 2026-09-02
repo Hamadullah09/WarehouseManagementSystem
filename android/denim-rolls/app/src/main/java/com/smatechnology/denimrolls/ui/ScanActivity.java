@@ -112,7 +112,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     private long sessionStartedAt;
     private long lastReadAt;
-    private boolean silenceReported;
     private String sessionKey;
 
     private TextView documentNumber;
@@ -337,7 +336,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         setStatus(getString(R.string.scan_gate_waiting), R.color.info, R.color.info_soft);
 
         if (cycleTags == 0) {
-            reader.signalAlarm();
+            reader.signalNoTag();
             showAlarm(getString(R.string.scan_no_tag_title),
                     getString(R.string.scan_cycle_no_tag));
         }
@@ -365,7 +364,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         setStatus(getString(R.string.scan_stopped), R.color.warn, R.color.warn_soft);
 
         if (accepted.isEmpty()) {
-            reader.signalAlarm();
+            reader.signalNoTag();
             showAlarm(getString(R.string.scan_no_tag_title), getString(R.string.scan_no_epc));
         }
 
@@ -421,7 +420,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             hideAlarm();
             setStatus(getString(R.string.scan_pass), R.color.ok, R.color.ok_soft);
         } else {
-            reader.signalAlarm();
+            // The same low tone a wrong roll makes, so a failed load and a
+            // wrong roll are one idea rather than two.
+            reader.signalWrongRoll();
             setStatus(headline, R.color.alarm, R.color.alarm_soft);
         }
 
@@ -531,7 +532,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
         lastEpc.setText(epc);
         lastReadAt = System.currentTimeMillis();
-        silenceReported = false;
 
         // Counted before the duplicate check: the cycle's question is whether
         // anything answered, not whether it was new. A roll sent through
@@ -548,7 +548,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             // What matters on the floor is "not on this document". Whether the
             // tag is unknown to the warehouse entirely is the server's call and
             // comes back with the verdict.
-            reader.signalAlarm();
+            reader.signalWrongRoll();
             showAlarm(getString(R.string.scan_invalid_title),
                     getString(R.string.scan_invalid_body, document.documentNumber));
 
@@ -574,14 +574,13 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
      * operator who has been told does not need telling four times a second.
      */
     private void armSilenceWatch() {
-        final int timeout = settings.noReadTimeoutMs();
+        final int window = settings.noReadTimeoutMs();
 
-        if (timeout <= 0) {
+        if (window <= 0) {
             return;
         }
 
         lastReadAt = System.currentTimeMillis();
-        silenceReported = false;
 
         silenceCheck = new Runnable() {
             @Override
@@ -590,18 +589,21 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
                     return;
                 }
 
-                if (System.currentTimeMillis() - lastReadAt >= timeout && !silenceReported) {
-                    silenceReported = true;
-                    reader.signalAlarm();
+                if (System.currentTimeMillis() - lastReadAt >= window) {
+                    reader.signalNoTag();
+
+                    // signalNoTag ignores a repeat while the previous alarm is
+                    // still sounding, so this keeps the message on screen at
+                    // the alarm's own rhythm instead of once and then silence.
                     showAlarm(getString(R.string.scan_no_tag_title),
                             getString(R.string.scan_no_silence));
                 }
 
-                ui.postDelayed(this, Math.max(200, timeout / 4));
+                ui.postDelayed(this, Math.max(200, window / 2));
             }
         };
 
-        ui.postDelayed(silenceCheck, timeout);
+        ui.postDelayed(silenceCheck, window);
     }
 
     private void disarmSilenceWatch() {
