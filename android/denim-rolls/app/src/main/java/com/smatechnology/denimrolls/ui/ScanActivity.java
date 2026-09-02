@@ -63,7 +63,12 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private ReaderController reader;
     private DocumentDetail document;
 
+    /** How long an alarm stays on screen before clearing itself. */
+    private static final long ALARM_VISIBLE_MS = 5000L;
+
     private final android.os.Handler watchdog = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final android.os.Handler alarmTimer = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable hideAlarm = () -> this.alarmPanel.setVisibility(View.GONE);
     private Runnable silenceCheck;
     private long lastReadAt;
     private boolean silenceReported;
@@ -452,7 +457,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             sessionHadAlarm = true;
             reader.signalAlarm();
             showAlarm(getString(R.string.scan_invalid_title),
-                    getString(R.string.scan_invalid_body, document.documentNumber));
+                    getString(R.string.scan_invalid_body, document.documentNumber, epc));
 
             rows.add(0, Row.stray(epc));
             adapter.notifyItemInserted(0);
@@ -478,13 +483,25 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         statusText.setTextColor(getColor(colourRes));
     }
 
+    /**
+     * Shows an alarm and clears it after {@link #ALARM_VISIBLE_MS}.
+     *
+     * <p>Auto-clearing matters more than it looks: a banner that stays until
+     * dismissed means the operator is either tapping the screen mid-pass or
+     * working under a red block that no longer describes anything. Each new
+     * alarm restarts the timer, so a run of bad reads keeps the warning up.
+     */
     private void showAlarm(String title, String body) {
         alarmTitle.setText(title);
         alarmBody.setText(body);
         alarmPanel.setVisibility(View.VISIBLE);
+
+        alarmTimer.removeCallbacks(hideAlarm);
+        alarmTimer.postDelayed(hideAlarm, ALARM_VISIBLE_MS);
     }
 
     private void hideAlarm() {
+        alarmTimer.removeCallbacks(hideAlarm);
         alarmPanel.setVisibility(View.GONE);
     }
 
@@ -513,6 +530,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     @Override
     protected void onDestroy() {
+        alarmTimer.removeCallbacks(hideAlarm);
         disarmSilenceWatchdog();
         reader.release();
         io.shutdownNow();

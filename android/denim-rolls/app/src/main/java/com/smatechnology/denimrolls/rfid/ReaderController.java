@@ -12,7 +12,6 @@ import com.smatechnology.denimrolls.data.AppSettings;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,14 +33,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   free()                          release the module
  * </pre>
  *
- * <h3>One roll per second</h3>
+ * <h3>Reading pace</h3>
  *
- * The gate procedure admits one roll at a time, but the reader reports the
- * same tag many times a second and several tags at once. Slowing the reader
- * down would only make it miss rolls, so instead every distinct tag is queued
- * as it arrives and released to the application exactly one per interval. No
- * tag is dropped, and the operator sees them at the pace the procedure expects.
- * The interval is configuration, not a constant.
+ * Tags surface as fast as the reader finds them. The reader reports the same
+ * tag many times a second, so each distinct tag is released once and the
+ * repeats are dropped -- but no artificial delay is imposed between different
+ * tags. Holding tags back would only make a fast pass look like a short read.
+ *
+ * <p>Silence is what gets watched instead: {@code ScanActivity} raises the
+ * no-tag alarm when nothing has been read for the configured window, which is
+ * what a roll going past without a working tag actually looks like.
  */
 public final class ReaderController {
 
@@ -78,9 +79,6 @@ public final class ReaderController {
     private final AppSettings settings;
     private final Handler main = new Handler(Looper.getMainLooper());
 
-    /** Distinct tags waiting to be released to the UI. */
-    private final ConcurrentLinkedQueue<UHFTAGInfo> pending = new ConcurrentLinkedQueue<>();
-
     /** Every tag seen this session, so a tag is queued once however often it repeats. */
     private final Set<String> seen = new LinkedHashSet<>();
 
@@ -90,7 +88,6 @@ public final class ReaderController {
 
     private RFIDWithUHFA4 reader;
     private Listener listener;
-    private Runnable pump;
 
     public ReaderController(Context context) {
         this.context = context.getApplicationContext();
@@ -192,8 +189,6 @@ public final class ReaderController {
             return true;
         }
 
-        pending.clear();
-
         synchronized (seen) {
             seen.clear();
         }
@@ -217,7 +212,6 @@ public final class ReaderController {
         }
 
         running.set(true);
-        startPump();
 
         if (listener != null) {
             main.post(() -> listener.onInventoryStateChanged(true));
@@ -239,17 +233,6 @@ public final class ReaderController {
         } catch (Throwable t) {
             Log.w(TAG, "stopInventory failed", t);
             healthy.set(false);
-        }
-
-        stopPump();
-
-        // Drain whatever is still queued: those tags were genuinely read
-        // before the operator pressed stop, and discarding them would
-        // manufacture a missing roll.
-        UHFTAGInfo info;
-
-        while ((info = pending.poll()) != null) {
-            release(info);
         }
 
         if (listener != null) {
@@ -286,45 +269,16 @@ public final class ReaderController {
 
             String epc = info.getEPC().trim().toUpperCase();
 
-            // Queue each distinct tag once, however many times it repeats.
+            // Release each distinct tag once, however many times it repeats.
             synchronized (seen) {
                 if (!seen.add(epc)) {
                     return;
                 }
             }
 
-            pending.add(info);
+            release(info);
         }
     };
-
-    /** Releases one queued tag per configured interval. */
-    private void startPump() {
-        final int interval = Math.max(1, settings.readIntervalMs());
-
-        pump = new Runnable() {
-            @Override
-            public void run() {
-                UHFTAGInfo info = pending.poll();
-
-                if (info != null) {
-                    release(info);
-                }
-
-                if (running.get()) {
-                    main.postDelayed(this, interval);
-                }
-            }
-        };
-
-        main.postDelayed(pump, interval);
-    }
-
-    private void stopPump() {
-        if (pump != null) {
-            main.removeCallbacks(pump);
-            pump = null;
-        }
-    }
 
     private void release(UHFTAGInfo info) {
         if (listener == null) {

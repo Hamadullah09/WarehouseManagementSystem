@@ -47,7 +47,7 @@
     <string name="scan_reading">Reading. Pass one roll at a time.</string>
     <string name="scan_stopped">Checking with the server…</string>
     <string name="scan_invalid_title">INVALID</string>
-    <string name="scan_invalid_body">This roll is not on document %1$s. Set it aside.</string>
+    <string name="scan_invalid_body">This roll is not on document %1$s. Set it aside.\n%2$s</string>
     <string name="scan_unknown_body">This EPC is not registered in the warehouse</string>
     <string name="scan_no_epc">Nothing was read. If a roll went through, it has no working tag.</string>
     <string name="scan_duplicate">Already read in this session</string>

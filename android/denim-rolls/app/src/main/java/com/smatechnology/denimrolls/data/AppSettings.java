@@ -24,15 +24,11 @@ public final class AppSettings {
     private static final String KEY_SERVER = "server_url";
     private static final String KEY_GATE = "gate_code";
     private static final String KEY_DEVICE = "device_id";
-    private static final String KEY_READ_INTERVAL = "read_interval_ms";
     private static final String KEY_POWER = "rf_power_dbm";
     private static final String KEY_ANTENNA = "antenna_port";
     private static final String KEY_ALARM_OUTPUT = "alarm_output";
     private static final String KEY_SOUND = "sound_enabled";
     private static final String KEY_NO_READ = "no_read_timeout_ms";
-
-    /** One accepted EPC per second, as the gate procedure requires. */
-    public static final int DEFAULT_READ_INTERVAL_MS = 1000;
 
     /**
      * Silence, in milliseconds, that counts as "something went past without a
@@ -95,19 +91,6 @@ public final class AppSettings {
         }
 
         return "U300-" + (TextUtils.isEmpty(serial) ? "UNKNOWN" : serial.replaceAll("\\s+", ""));
-    }
-
-    /**
-     * Minimum gap between two accepted EPCs. The gate procedure admits one roll
-     * per second; the reader itself will report far faster than that, so the
-     * surplus is discarded rather than the reader being slowed down.
-     */
-    public int readIntervalMs() {
-        return prefs.getInt(KEY_READ_INTERVAL, DEFAULT_READ_INTERVAL_MS);
-    }
-
-    public void setReadIntervalMs(int value) {
-        prefs.edit().putInt(KEY_READ_INTERVAL, Math.max(0, value)).apply();
     }
 
     /**

@@ -24,4 +24,6 @@
     <color name="alarm">#D92D20</color>
     <color name="alarm_soft">#FDECEA</color>
     <color name="info">#1668C4</color>
+    <!-- Launcher plate. Neutral so the orange mark reads as the mark. -->
+    <color name="icon_background">#FFFFFF</color>
 </resources>

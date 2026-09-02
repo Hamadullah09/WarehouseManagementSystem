@@ -26,7 +26,6 @@ public final class SettingsActivity extends AppCompatActivity {
     private TextInputEditText serverField;
     private TextInputEditText gateField;
     private TextInputEditText deviceField;
-    private TextInputEditText intervalField;
     private TextInputEditText powerField;
     private TextInputEditText antennaField;
     private TextInputEditText alarmField;
@@ -43,7 +42,6 @@ public final class SettingsActivity extends AppCompatActivity {
         serverField = findViewById(R.id.server_url);
         gateField = findViewById(R.id.gate_code);
         deviceField = findViewById(R.id.device_id);
-        intervalField = findViewById(R.id.read_interval);
         powerField = findViewById(R.id.rf_power);
         antennaField = findViewById(R.id.antenna_port);
         alarmField = findViewById(R.id.alarm_output);
@@ -53,7 +51,6 @@ public final class SettingsActivity extends AppCompatActivity {
         serverField.setText(settings.serverUrl());
         gateField.setText(settings.gateCode());
         deviceField.setText(settings.deviceId());
-        intervalField.setText(String.valueOf(settings.readIntervalMs()));
         powerField.setText(String.valueOf(settings.powerDbm()));
         antennaField.setText(String.valueOf(settings.antennaPort()));
         alarmField.setText(String.valueOf(settings.alarmOutput()));
@@ -75,7 +72,6 @@ public final class SettingsActivity extends AppCompatActivity {
         settings.setServerUrl(server);
         settings.setGateCode(text(gateField));
         settings.setDeviceId(text(deviceField));
-        settings.setReadIntervalMs(number(intervalField, AppSettings.DEFAULT_READ_INTERVAL_MS));
         settings.setPowerDbm(number(powerField, AppSettings.DEFAULT_POWER_DBM));
         settings.setAntennaPort(number(antennaField, AppSettings.DEFAULT_ANTENNA));
         settings.setAlarmOutput(number(alarmField, AppSettings.DEFAULT_ALARM_OUTPUT));
