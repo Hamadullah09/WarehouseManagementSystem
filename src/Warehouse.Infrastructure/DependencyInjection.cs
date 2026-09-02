@@ -6,6 +6,7 @@ using Warehouse.Application.Alarms;
 using Warehouse.Application.Audit;
 using Warehouse.Application.Documents;
 using Warehouse.Application.Epcs;
+using Warehouse.Application.Gates;
 using Warehouse.Application.Inventory;
 using Warehouse.Domain.Validation;
 using Warehouse.Infrastructure.Identity;
@@ -60,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentService, DocumentService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IEpcImportService, EpcImportService>();
+        services.AddScoped<IDeviceSessionService, DeviceSessionService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
 

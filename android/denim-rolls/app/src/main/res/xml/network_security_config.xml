@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Warehouse servers commonly sit on a private LAN behind plain HTTP. Cleartext
+  is permitted so the app can reach one, but this is a deliberate, visible
+  decision rather than a silent default: put the server behind TLS and this
+  file should be tightened to match.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

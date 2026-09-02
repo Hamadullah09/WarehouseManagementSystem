@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DENIM ROLLS</string>
+    <string name="brand">SMA Technology</string>
+
+    <string name="sign_in">Sign in</string>
+    <string name="user_name">User name</string>
+    <string name="password">Password</string>
+    <string name="settings">Settings</string>
+    <string name="sign_out">Sign out</string>
+    <string name="refresh">Refresh</string>
+
+    <string name="documents">Documents</string>
+    <string name="start">START</string>
+    <string name="stop">STOP</string>
+    <string name="submit">Submit session</string>
+
+    <string name="server_url">Server address</string>
+    <string name="gate_code">Gate code</string>
+    <string name="device_id">Device ID</string>
+    <string name="read_interval">Read interval (ms)</string>
+    <string name="rf_power">Transmit power (dBm)</string>
+    <string name="antenna_port">Antenna port</string>
+    <string name="alarm_output">Alarm output (0 disables)</string>
+    <string name="sound_enabled">Sound and beacon</string>
+    <string name="save">Save</string>
+
+    <string name="login_target">Gate %1$s &#183; %2$s</string>
+    <string name="login_unconfigured">Not configured yet. Open Settings to set the server address and gate.</string>
+    <string name="login_configure_first">Set the server address and gate code before signing in.</string>
+    <string name="login_missing_credentials">Enter your user name and password.</string>
+    <string name="login_subtitle">Warehouse gate reader</string>
+
+    <string name="documents_empty">No documents to work. Pull down to refresh.</string>
+    <string name="documents_signed_in">Signed in as %1$s</string>
+    <string name="filter_all">All</string>
+    <string name="filter_inward">Inward</string>
+    <string name="filter_outward">Outward</string>
+
+    <string name="scan_document">Document</string>
+    <string name="scan_user">User</string>
+    <string name="scan_total_articles">Total articles</string>
+    <string name="scan_total_qty">Total unit qty</string>
+    <string name="scan_balance_articles">Balance articles</string>
+    <string name="scan_balance_qty">Balance qty</string>
+    <string name="scan_ready">Ready. Press START to begin reading.</string>
+    <string name="scan_reading">Reading. One roll per second.</string>
+    <string name="scan_stopped">Stopped. Submitting session.</string>
+    <string name="scan_invalid_title">INVALID</string>
+    <string name="scan_invalid_body">This EPC does not belong to document %1$s</string>
+    <string name="scan_unknown_body">This EPC is not registered in the warehouse</string>
+    <string name="scan_no_epc">NO EPC DETECTED &#8212; an item may have passed without a tag</string>
+    <string name="scan_duplicate">Already read in this session</string>
+    <string name="scan_confirm_stop">Stop reading and submit this session?</string>
+    <string name="scan_rolls">Rolls</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="settings_hint_server">Address of the warehouse portal, e.g. http://192.168.18.51:5080</string>
+    <string name="settings_hint_gate">Must match a gate configured in the portal</string>
+    <string name="settings_hint_interval">Rolls accepted per second is 1000 divided by this</string>
+    <string name="back">Back</string>
+    <string name="scan_loading">Loading document…</string>
+    <string name="scan_load_failed">Could not load the document</string>
+    <string name="scan_submit_failed">Could not submit the session</string>
+    <string name="scan_reader_title">READER</string>
+    <string name="scan_pass">PASS</string>
+    <string name="scan_fail">NOT ACCEPTED</string>
+    <string name="scan_committed">Committed %1$d article(s), %2$d unit(s).</string>
+    <string name="scan_missing_label">Missing</string>
+    <string name="scan_unknown_label">Unknown to the warehouse</string>
+    <string name="scan_unexpected_label">Not on this document</string>
+    <string name="scan_state_read">READ</string>
+    <string name="scan_state_done">COMMITTED</string>
+    <string name="scan_state_pending">PENDING</string>
+    <string name="scan_last">Last tag</string>
+    <string name="close">Close</string>
+</resources>

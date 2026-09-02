@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // The Chainway SDK is not published to any repository. It is
+        // referenced directly as a file in app/build.gradle, so no repository
+        // entry is needed for it.
+    }
+}
+
+rootProject.name = "DenimRolls"
+include ":app"

@@ -30,6 +30,9 @@ public sealed record DocumentItemDto
 
     public string? CartonNumber { get; init; }
 
+    /// <summary>Style/product this roll belongs to, e.g. BR207.</summary>
+    public string? ProductCode { get; init; }
+
     public int Quantity { get; init; }
 
     public bool IsDetected { get; init; }

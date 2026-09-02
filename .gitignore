@@ -46,3 +46,16 @@ bridge/u300-bridge/native/*
 # The vendor archive itself, and anything extracted from it.
 U300.rar
 vendor/
+
+# ---------------------------------------------------------------------------
+# Android app
+# ---------------------------------------------------------------------------
+android/**/build/
+android/**/.gradle/
+android/**/local.properties
+android/**/keystore.properties
+android/**/*.jks
+android/**/*.keystore
+
+# Chainway SDK again: same licence, same reason.
+android/denim-rolls/app/libs/*.aar

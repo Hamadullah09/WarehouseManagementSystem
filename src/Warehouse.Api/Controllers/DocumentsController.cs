@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.Application.Documents;
+using Warehouse.Application.Gates;
 using Warehouse.Domain;
 using Warehouse.Domain.Entities;
 
@@ -158,4 +159,22 @@ public sealed class DocumentsController(IDocumentService documents) : Controller
 
         return CreatedAtAction(nameof(Get), new { id = document.Id }, document);
     }
+
+    /// <summary>
+    /// Records a read session performed by an app running on the reader.
+    /// </summary>
+    /// <remarks>
+    /// The device validates locally for instant operator feedback; this
+    /// re-validates against the database and is the only path that moves stock.
+    /// Re-posting the same sessionKey returns the original verdict rather than
+    /// double-counting the load.
+    /// </remarks>
+    [HttpPost("{id:int}/scan-sessions")]
+    [Authorize]
+    public async Task<IActionResult> SubmitScanSession(
+        int id,
+        [FromBody] DeviceSessionRequest request,
+        [FromServices] IDeviceSessionService sessions,
+        CancellationToken cancellationToken)
+        => Ok(await sessions.SubmitAsync(id, request, cancellationToken));
 }

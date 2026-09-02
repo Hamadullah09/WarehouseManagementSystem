@@ -48,7 +48,8 @@ React SPA ──REST + SignalR──> ASP.NET Core 10 ──IRfidReader──> U
 | `Warehouse.Rfid.Simulation` | Deterministic fake reader. Development only. |
 | `Warehouse.Api` | REST API, SignalR hub, hosted services, DI. |
 | `Warehouse.Web` | React + TypeScript gate display and admin console. |
-| `bridge/u300-bridge` | Java sidecar wrapping the vendor SDK. |
+| `bridge/u300-bridge` | Java sidecar wrapping the vendor SDK (slave mode). |
+| `android/denim-rolls` | DENIM ROLLS app that runs on the U300 itself (host mode). |
 
 **Why a Java sidecar:** the U300 runs Android 11 and Chainway ships a Java-only
 SDK. The bridge speaks the vendor API exactly as documented on one side and a
@@ -225,6 +226,38 @@ stylesheet: the wall display is dark, enormous and built to be read across an
 aisle, none of which survives contact with paper. It carries the gate, the
 detected-versus-expected counts, and who printed it and when, so a sheet found
 on a desk later can still be accounted for.
+
+### The DENIM ROLLS reader app
+
+`android/denim-rolls` is an Android app that runs **on the U300**, turning the
+reader into a self-contained gate terminal: sign in, pick a document, START,
+run the rolls through, STOP. It releases one roll per second, rejects a tag that
+is not on the document immediately, and posts the whole session to
+`POST /api/documents/{id}/scan-sessions` for the server to rule on.
+
+Two ways to reach the reader, and they are alternatives:
+
+| | Slave mode | Host mode |
+|---|---|---|
+| Runs where | Server, via the Java bridge | On the reader |
+| Trigger | GPIO 12V signal | START / STOP on screen |
+| Use when | Unattended gate, hardware-timed | Operator-attended gate |
+
+See [`android/denim-rolls/README.md`](android/denim-rolls/README.md).
+
+### Loading a catalogue
+
+`scripts/load_catalogue.py` imports EPCs from a CSV and generates documents,
+deriving product styles from the stock codes. Nothing about the data is
+assumed and no EPC, style or document number is written into the script:
+
+```bash
+python scripts/load_catalogue.py --csv 400_EPC_with_Stock_Code.csv --password "$PASSWORD"
+```
+
+Rows whose EPC is not valid hexadecimal are reported and skipped rather than
+guessed at, because a wrong EPC in the catalogue means a real item alarms at
+the gate for ever.
 
 ### Roles
 

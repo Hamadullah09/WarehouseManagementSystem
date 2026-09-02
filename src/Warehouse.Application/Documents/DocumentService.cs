@@ -477,6 +477,8 @@ public sealed class DocumentService(
             .AsNoTracking()
             .Include(d => d.Gate)
             .Include(d => d.Items)
+            .ThenInclude(i => i.EpcTag)
+            .ThenInclude(t => t.Product)
             .FirstOrDefaultAsync(predicate, cancellationToken);
 
     private static DocumentSummaryDto MapSummary(Document d) => new()
@@ -505,6 +507,10 @@ public sealed class DocumentService(
             .Select(i => new DocumentItemDto
             {
                 Epc = i.Epc,
+                ItemCode = i.EpcTag?.ItemCode,
+                ItemName = i.EpcTag?.ItemName,
+                CartonNumber = i.EpcTag?.CartonNumber,
+                ProductCode = i.EpcTag?.Product?.Code,
                 Quantity = i.Quantity,
                 IsDetected = i.IsDetected,
                 DetectedAt = i.DetectedAt

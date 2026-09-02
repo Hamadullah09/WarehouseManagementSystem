@@ -1,0 +1,14 @@
+local.properties
+.gradle/
+build/
+*.iml
+.idea/
+
+# Chainway SDK: non-transferable licence, no right to copy. Populate with
+# scripts/fetch-vendor-libs.ps1 from your own U300 media.
+app/libs/*.aar
+
+# Signing material never belongs in source control.
+keystore.properties
+*.jks
+*.keystore
