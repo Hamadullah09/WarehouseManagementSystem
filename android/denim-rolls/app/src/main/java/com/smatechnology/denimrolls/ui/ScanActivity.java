@@ -48,8 +48,19 @@ import java.util.concurrent.Executors;
  * goes to the server, which re-validates against the database and is the only
  * thing that can move stock.
  *
- * <p>Scanning starts from the buttons, or from the gate's own 12V signal on a
- * GPIO input where the reader is wired to one.
+ * <h3>Two ways to run a gate</h3>
+ *
+ * By default the operator presses START, the reader reads until STOP, and
+ * rolls are released one per interval so the list fills at a pace a person
+ * can follow.
+ *
+ * <p>Where the gate has its own sensor, START instead only opens the session:
+ * each time 12V appears on the input the reader reads one roll and stops
+ * again, and the roll that produced no tag is called out the moment the
+ * signal drops rather than at the end of the load. The buttons still bound
+ * the session, so the gate can do nothing at all unless a document is open --
+ * and where the sensor is fed from a reader output, START and STOP switch
+ * that supply, so it is true electrically as well.
  */
 public final class ScanActivity extends AppCompatActivity implements ReaderController.Listener {
 
@@ -86,6 +97,19 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private DocumentDetail document;
 
     private int documentId;
+
+    /** True between START and STOP, whichever drives the reading. */
+    private boolean sessionOpen;
+
+    /** True when the gate signal, not the buttons, starts each read. */
+    private boolean gateDriven;
+
+    /** True while the gate signal is held and the reader is reading a roll. */
+    private boolean cycleRunning;
+
+    /** Tags delivered during the current gate cycle, repeats included. */
+    private int cycleTags;
+
     private long sessionStartedAt;
     private long lastReadAt;
     private boolean silenceReported;
@@ -234,16 +258,89 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         rebuildRows();
         updateFigures();
         hideAlarm();
+        reader.cancelAlarm();
+
+        gateDriven = settings.gpioStartEnabled();
+
+        if (gateDriven) {
+            // Nothing is read yet. The gate says when, one roll at a time,
+            // and the session is only the window in which it is allowed to.
+            sessionOpen = true;
+            reader.powerGate(true);
+            showButtons();
+
+            setStatus(getString(R.string.scan_gate_armed), R.color.info, R.color.info_soft);
+
+            return;
+        }
 
         if (!reader.start()) {
             return;
         }
 
-        startButton.setVisibility(View.GONE);
-        stopButton.setVisibility(View.VISIBLE);
+        sessionOpen = true;
+        showButtons();
 
         setStatus(getString(R.string.scan_reading), R.color.ok, R.color.ok_soft);
         armSilenceWatch();
+    }
+
+    private void showButtons() {
+        startButton.setVisibility(sessionOpen ? View.GONE : View.VISIBLE);
+        stopButton.setVisibility(sessionOpen ? View.VISIBLE : View.GONE);
+    }
+
+    // ----------------------------------------------------------- gate cycle
+
+    /**
+     * One roll: the signal arrives, the reader reads, the signal drops.
+     *
+     * <p>Unpaced, because the gate is already doing the pacing. Holding tags
+     * back on top of a signal that lasts a second or two would only lose
+     * them.
+     */
+    private void beginCycle() {
+        if (cycleRunning || !reader.start(false)) {
+            return;
+        }
+
+        cycleRunning = true;
+        cycleTags = 0;
+
+        // A new roll at the gate means the last one has been dealt with.
+        reader.cancelAlarm();
+        hideAlarm();
+
+        setStatus(getString(R.string.scan_gate_reading), R.color.ok, R.color.ok_soft);
+    }
+
+    private void endCycle() {
+        if (!cycleRunning) {
+            return;
+        }
+
+        cycleRunning = false;
+        reader.stop();
+
+        // stop() releases whatever was still queued, and those arrive on this
+        // thread; the verdict has to wait until they have.
+        ui.post(this::judgeCycle);
+    }
+
+    /**
+     * A roll went past and nothing answered.
+     *
+     * <p>Reported here rather than at the end of the load, because here the
+     * roll is still within arm's reach.
+     */
+    private void judgeCycle() {
+        setStatus(getString(R.string.scan_gate_waiting), R.color.info, R.color.info_soft);
+
+        if (cycleTags == 0) {
+            reader.signalAlarm();
+            showAlarm(getString(R.string.scan_no_tag_title),
+                    getString(R.string.scan_cycle_no_tag));
+        }
     }
 
     private void confirmStop() {
@@ -255,11 +352,14 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     }
 
     private void stopSession() {
+        sessionOpen = false;
+        cycleRunning = false;
+
         disarmSilenceWatch();
         reader.stop();
+        reader.powerGate(false);
 
-        startButton.setVisibility(View.VISIBLE);
-        stopButton.setVisibility(View.GONE);
+        showButtons();
         startButton.setEnabled(false);
 
         setStatus(getString(R.string.scan_stopped), R.color.warn, R.color.warn_soft);
@@ -298,7 +398,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private void showResult(SessionResult result) {
         startButton.setEnabled(true);
 
-        StringBuilder detail = new StringBuilder(result.summary);
+        String headline = headline(result);
+        StringBuilder detail = new StringBuilder(headline);
 
         if (result.movedArticles > 0) {
             detail.append("\n\n").append(getString(
@@ -321,10 +422,45 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             setStatus(getString(R.string.scan_pass), R.color.ok, R.color.ok_soft);
         } else {
             reader.signalAlarm();
-            setStatus(result.summary, R.color.alarm, R.color.alarm_soft);
+            setStatus(headline, R.color.alarm, R.color.alarm_soft);
         }
 
         refreshQuietly();
+    }
+
+    /**
+     * The verdict in words an operator can act on.
+     *
+     * <p>The server's own summary counts everything precisely and reads like
+     * a log line. What matters at the gate is which pile of rolls has a
+     * problem, so that is what this says. The server's wording is kept as a
+     * fallback for a failure that fits none of these buckets, rather than
+     * showing nothing at all.
+     */
+    private String headline(SessionResult result) {
+        if (result.passed) {
+            return getString(R.string.scan_all_good, result.detectedCount);
+        }
+
+        StringBuilder parts = new StringBuilder();
+
+        append(parts, R.string.scan_missing_label, result.missing.size());
+        append(parts, R.string.scan_unknown_label, result.unknown.size());
+        append(parts, R.string.scan_unexpected_label, result.unexpected.size());
+
+        return parts.length() == 0 ? result.summary : parts.toString();
+    }
+
+    private void append(StringBuilder parts, int label, int count) {
+        if (count == 0) {
+            return;
+        }
+
+        if (parts.length() > 0) {
+            parts.append("  ·  ");
+        }
+
+        parts.append(getString(R.string.scan_count_line, getString(label), count));
     }
 
     private void refreshQuietly() {
@@ -361,17 +497,29 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     @Override
     public void onInventoryStateChanged(boolean running) {
-        stopButton.setVisibility(running ? View.VISIBLE : View.GONE);
-        startButton.setVisibility(running ? View.GONE : View.VISIBLE);
+        // The buttons follow the session, not the module: in gate mode the
+        // module starts and stops for every roll and the buttons must not
+        // flicker along with it.
+        showButtons();
     }
 
-    /** The gate's own signal, where the reader is wired to one. */
+    /**
+     * The gate's own signal, where the reader is wired to one.
+     *
+     * <p>Ignored unless a document is open. The gate does not decide what is
+     * being loaded; the operator does, by choosing a document and pressing
+     * START.
+     */
     @Override
     public void onGateSignal(boolean active) {
-        if (active && !reader.isRunning()) {
-            startSession();
-        } else if (!active && reader.isRunning()) {
-            stopSession();
+        if (!sessionOpen || !gateDriven) {
+            return;
+        }
+
+        if (active) {
+            beginCycle();
+        } else {
+            endCycle();
         }
     }
 
@@ -384,6 +532,11 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         lastEpc.setText(epc);
         lastReadAt = System.currentTimeMillis();
         silenceReported = false;
+
+        // Counted before the duplicate check: the cycle's question is whether
+        // anything answered, not whether it was new. A roll sent through
+        // twice has a working tag either way.
+        cycleTags++;
 
         if (!accepted.add(epc)) {
             return;

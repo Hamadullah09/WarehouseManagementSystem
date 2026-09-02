@@ -94,6 +94,40 @@ signing in.
 | `GET /api/documents/{id}` | One document with EPCs and stock codes |
 | `POST /api/documents/{id}/scan-sessions` | Submit a completed session |
 
+## Running the gate
+
+Two ways, chosen by **Start and stop from the gate signal** in Reader settings.
+
+**Buttons (default).** START opens the session and the reader reads until STOP.
+Distinct tags are released one per *Read interval* so the list fills at a pace a
+person can follow, and *No-tag alarm after* raises the alarm on a quiet spell.
+
+**Gate signal.** START only opens the session; the reading is driven by the
+gate's own sensor:
+
+```
+START  ──▶ session open, gate powered (if an output is configured)
+             │
+             ▼
+   12V on the input  ──▶ inventory on, read this roll
+   12V drops         ──▶ inventory off, judge the roll
+                           no tag  ──▶ alarm for "Alarm length"
+                           not on the document ──▶ same alarm, when it was read
+             │
+             ▼  (repeats for every roll)
+STOP   ──▶ session closed, gate unpowered, the whole load sent to the server
+```
+
+Pacing is switched off in this mode: the gate already admits one roll at a
+time, and holding tags back on top of a signal that lasts a second or two
+would only lose them. The GPI is polled at 150 ms, since the window that
+brackets a single roll is far shorter than one that bracketed a whole session.
+
+The buttons bound the session in both modes, so the gate can do nothing unless
+a document is open on the screen. Where the sensor is fed from one of the
+reader's outputs (*Power the gate sensor from output*), START and STOP switch
+that supply, making it true electrically as well as in software.
+
 ## SDK calls used
 
 All from `com.rscja.deviceapi.RFIDWithUHFA4`, the on-device DeviceAPI:

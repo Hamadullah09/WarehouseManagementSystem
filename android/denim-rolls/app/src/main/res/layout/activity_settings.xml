@@ -154,6 +154,22 @@
                         android:inputType="number" />
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/alarm_length"
+                    app:helperTextEnabled="true"
+                    app:helperText="@string/alarm_length_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/alarm_length"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number" />
+                </com.google.android.material.textfield.TextInputLayout>
+
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/sound_enabled"
                     android:layout_width="match_parent"
@@ -240,6 +256,22 @@
                     android:text="@string/gpio_active_high_hint"
                     android:textSize="13sp"
                     android:textColor="@color/ink_muted" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:hint="@string/gate_power"
+                    app:helperTextEnabled="true"
+                    app:helperText="@string/gate_power_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/gate_power"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <TextView
                     android:layout_width="wrap_content"

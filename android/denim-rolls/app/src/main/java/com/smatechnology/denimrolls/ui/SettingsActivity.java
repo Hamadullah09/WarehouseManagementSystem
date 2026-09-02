@@ -53,6 +53,8 @@ public final class SettingsActivity extends AppCompatActivity {
     private TextInputEditText intervalField;
     private TextInputEditText noReadField;
     private TextInputEditText gpioInputField;
+    private TextInputEditText gatePowerField;
+    private TextInputEditText alarmLengthField;
     private MaterialSwitch soundSwitch;
     private MaterialSwitch gpioStartSwitch;
     private MaterialSwitch gpioActiveHighSwitch;
@@ -74,6 +76,8 @@ public final class SettingsActivity extends AppCompatActivity {
         intervalField = findViewById(R.id.read_interval);
         noReadField = findViewById(R.id.no_read_timeout);
         gpioInputField = findViewById(R.id.gpio_input);
+        gatePowerField = findViewById(R.id.gate_power);
+        alarmLengthField = findViewById(R.id.alarm_length);
         soundSwitch = findViewById(R.id.sound_enabled);
         gpioStartSwitch = findViewById(R.id.gpio_start);
         gpioActiveHighSwitch = findViewById(R.id.gpio_active_high);
@@ -88,6 +92,8 @@ public final class SettingsActivity extends AppCompatActivity {
         intervalField.setText(String.valueOf(settings.readIntervalMs()));
         noReadField.setText(String.valueOf(settings.noReadTimeoutMs()));
         gpioInputField.setText(String.valueOf(settings.gpioInputPin()));
+        gatePowerField.setText(String.valueOf(settings.gatePowerOutput()));
+        alarmLengthField.setText(String.valueOf(settings.alarmMillis()));
         soundSwitch.setChecked(settings.soundEnabled());
         gpioStartSwitch.setChecked(settings.gpioStartEnabled());
         gpioActiveHighSwitch.setChecked(settings.gpioActiveHigh());
@@ -113,6 +119,8 @@ public final class SettingsActivity extends AppCompatActivity {
         settings.setReadIntervalMs(number(intervalField, AppSettings.DEFAULT_READ_INTERVAL_MS));
         settings.setNoReadTimeoutMs(number(noReadField, AppSettings.DEFAULT_NO_READ_TIMEOUT_MS));
         settings.setGpioInputPin(number(gpioInputField, AppSettings.DEFAULT_GPIO_INPUT));
+        settings.setGatePowerOutput(number(gatePowerField, AppSettings.DEFAULT_GATE_POWER));
+        settings.setAlarmMillis(number(alarmLengthField, AppSettings.DEFAULT_ALARM_MS));
         settings.setSoundEnabled(soundSwitch.isChecked());
         settings.setGpioStartEnabled(gpioStartSwitch.isChecked());
         settings.setGpioActiveHigh(gpioActiveHighSwitch.isChecked());
@@ -125,6 +133,8 @@ public final class SettingsActivity extends AppCompatActivity {
         intervalField.setText(String.valueOf(settings.readIntervalMs()));
         noReadField.setText(String.valueOf(settings.noReadTimeoutMs()));
         gpioInputField.setText(String.valueOf(settings.gpioInputPin()));
+        gatePowerField.setText(String.valueOf(settings.gatePowerOutput()));
+        alarmLengthField.setText(String.valueOf(settings.alarmMillis()));
 
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
         finish();

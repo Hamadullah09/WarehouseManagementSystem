@@ -43,17 +43,17 @@
     <string name="scan_total_qty">Total unit qty</string>
     <string name="scan_balance_articles">Balance articles</string>
     <string name="scan_balance_qty">Balance qty</string>
-    <string name="scan_ready">Ready. Press START, then pass the rolls by the antenna.</string>
-    <string name="scan_reading">Reading. Pass one roll at a time.</string>
-    <string name="scan_stopped">Checking with the server…</string>
-    <string name="scan_invalid_title">INVALID</string>
-    <string name="scan_invalid_body">This roll is not on document %1$s. Set it aside.</string>
+    <string name="scan_ready">Press START to begin.</string>
+    <string name="scan_reading">Reading. Send one roll at a time.</string>
+    <string name="scan_stopped">Checking the list…</string>
+    <string name="scan_invalid_title">WRONG ROLL</string>
+    <string name="scan_invalid_body">This roll is not on document %1$s. Take it out.</string>
     <string name="scan_unknown_body">This EPC is not registered in the warehouse</string>
-    <string name="scan_no_silence">Nothing has been read for a moment. If a roll went past, its tag is not answering.</string>
+    <string name="scan_no_silence">Nothing read for a moment. Check the tag on the roll.</string>
     <string name="scan_unknown_roll">UNKNOWN ROLL</string>
-    <string name="scan_no_epc">Nothing was read. If a roll went through, it has no working tag.</string>
+    <string name="scan_no_epc">No roll was read. Check the tags.</string>
     <string name="scan_duplicate">Already read in this session</string>
-    <string name="scan_confirm_stop">Finish this scan and send it to the server?</string>
+    <string name="scan_confirm_stop">Finished? The list will be checked and the stock updated.</string>
     <string name="scan_rolls">Rolls on this document</string>
     <string name="settings_saved">Settings saved</string>
     <string name="settings_hint_server">Where the warehouse system is, e.g. http://192.168.18.51:5080</string>
@@ -61,14 +61,14 @@
     <string name="settings_hint_interval">How long to wait between rolls, in milliseconds. 1000 = one per second.</string>
     <string name="back">Back</string>
     <string name="scan_loading">Loading…</string>
-    <string name="scan_load_failed">Could not load this document</string>
-    <string name="scan_submit_failed">Could not send to the server</string>
+    <string name="scan_load_failed">CANNOT OPEN</string>
+    <string name="scan_submit_failed">NOT SAVED</string>
     <string name="scan_reader_title">READER NOT READY</string>
-    <string name="scan_pass">ACCEPTED</string>
-    <string name="scan_fail">NOT ACCEPTED</string>
-    <string name="scan_committed">Committed %1$d article(s), %2$d unit(s).</string>
-    <string name="scan_missing_label">Not read</string>
-    <string name="scan_unknown_label">Not in the system</string>
+    <string name="scan_pass">ALL ROLLS CORRECT</string>
+    <string name="scan_fail">SOMETHING IS WRONG</string>
+    <string name="scan_committed">Stock updated: %1$d rolls, %2$d units.</string>
+    <string name="scan_missing_label">Did not pass the gate</string>
+    <string name="scan_unknown_label">Tag not known here</string>
     <string name="scan_unexpected_label">Not on this document</string>
     <string name="scan_state_read">READ</string>
     <string name="scan_state_done">ALREADY IN</string>
@@ -129,7 +129,7 @@
     <string name="status_alarm_line">%1$s — %2$s</string>
     <string name="gpio_heading">Gate signal (GPIO)</string>
     <string name="gpio_start">Start and stop from the gate signal</string>
-    <string name="gpio_start_hint">Off: the operator uses the START and STOP buttons. On: the sensor on the gate runs the scan, and the buttons still work as well.</string>
+    <string name="gpio_start_hint">Off: the operator presses START, and the reader reads until STOP. On: START only gets ready, and each time the gate sends 12V the reader reads one roll and stops again.</string>
     <string name="gpio_input">Gate signal input (1 to 4)</string>
     <string name="gpio_input_hint">Which of the four inputs the sensor is wired to. Input 1 is terminal pin 5, input 2 pin 17, input 3 pin 6, input 4 pin 18.</string>
     <string name="gpio_active_high">12V on the input means the gate is active</string>
@@ -139,4 +139,14 @@
     <string name="gpio_live_hint">An input with nothing wired to it sits HIGH, so it is the change that tells you something. Have someone trigger the gate and watch which input moves: that is the number to enter above, and which way it moves tells you how to set the switch.</string>
     <string name="gpio_on">HIGH</string>
     <string name="gpio_off">low</string>
+    <string name="scan_gate_armed">Ready. Send the rolls through the gate.</string>
+    <string name="scan_gate_reading">Reading this roll…</string>
+    <string name="scan_gate_waiting">Waiting for the next roll…</string>
+    <string name="scan_cycle_no_tag">That roll had no tag. Take it out and check its tag.</string>
+    <string name="scan_all_good">All %1$d rolls are correct.</string>
+    <string name="scan_count_line">%1$s (%2$d)</string>
+    <string name="gate_power">Power the gate sensor from output (0 = none)</string>
+    <string name="gate_power_hint">If the gate sensor is fed from one of the reader outputs, put its number here. START switches it on, STOP switches it off, so the gate can only trigger a scan while a document is open.</string>
+    <string name="alarm_length">Alarm length (ms)</string>
+    <string name="alarm_length_hint">How long the beeper and beacon stay on when something is wrong. 4000 = four seconds.</string>
 </resources>

@@ -54,6 +54,17 @@ public final class ReaderController {
 
     private static final String TAG = "ReaderController";
 
+    /** The module's buzzer is one short beep, so an alarm repeats it. */
+    private static final long BEEP_EVERY_MS = 500L;
+
+    /**
+     * How often the gate input is sampled. A roll can cross in about a
+     * second, so the window that starts and ends a read has to be caught
+     * promptly; four times a second was fine when the signal bracketed a
+     * whole session and is not fine when it brackets one roll.
+     */
+    private static final long GPI_POLL_MS = 150L;
+
     /**
      * Nearly every failure to open the module has the same cause, so the
      * message says what to do about it rather than restating that something
@@ -96,6 +107,9 @@ public final class ReaderController {
     private final Set<String> seen = new LinkedHashSet<>();
 
     private final AtomicBoolean running = new AtomicBoolean(false);
+
+    /** Whether the pump holds tags back, or lets them straight through. */
+    private boolean paced = true;
     private final AtomicInteger rawReads = new AtomicInteger(0);
     private final AtomicBoolean healthy = new AtomicBoolean(true);
 
@@ -107,6 +121,8 @@ public final class ReaderController {
     private Listener listener;
     private Runnable pump;
     private Runnable gpiWatcher;
+    private Runnable alarmBeep;
+    private Runnable alarmRelease;
     private Boolean lastGateSignal;
 
     public ReaderController(Context context) {
@@ -199,8 +215,19 @@ public final class ReaderController {
         }
     }
 
-    /** Starts a read session. Clears any state from the previous one. */
+    /**
+     * Starts reading, pacing the tags one per configured interval.
+     *
+     * <p>Use {@link #start(boolean)} with {@code false} where something else
+     * already admits one roll at a time -- a gate signal, for instance --
+     * since pacing on top of that only adds delay.
+     */
     public boolean start() {
+        return start(true);
+    }
+
+    /** Starts reading. Clears any state from the previous session. */
+    public boolean start(boolean paced) {
         if (reader == null && !initialise()) {
             return false;
         }
@@ -209,6 +236,7 @@ public final class ReaderController {
             return true;
         }
 
+        this.paced = paced;
         pending.clear();
 
         synchronized (seen) {
@@ -282,6 +310,8 @@ public final class ReaderController {
     /** Releases the module. Call from the owning screen's onDestroy. */
     public void release() {
         stopGateInputWatch();
+        cancelAlarm();
+        powerGate(false);
         stop();
 
         try {
@@ -322,7 +352,7 @@ public final class ReaderController {
 
     /** Releases one queued tag per configured interval. */
     private void startPump() {
-        final int interval = settings.readIntervalMs();
+        final int interval = paced ? settings.readIntervalMs() : 0;
 
         if (interval <= 0) {
             // Pacing switched off: drain as fast as tags arrive.
@@ -432,11 +462,11 @@ public final class ReaderController {
                     }
                 }
 
-                main.postDelayed(this, 250);
+                main.postDelayed(this, GPI_POLL_MS);
             }
         };
 
-        main.postDelayed(gpiWatcher, 250);
+        main.postDelayed(gpiWatcher, GPI_POLL_MS);
         Log.i(TAG, "watching " + wanted + " for the gate signal");
     }
 
@@ -526,20 +556,45 @@ public final class ReaderController {
 
     /**
      * Alarm: sounder plus the configured optocoupler output, which is what a
-     * beacon or a barrier relay hangs off. The output is released on a timer
-     * so a stuck alarm cannot latch the beacon on for ever.
+     * beacon or a barrier relay hangs off.
+     *
+     * <p>It runs for the configured length rather than a single chirp. A gate
+     * is a noisy place and the person who needs to hear it is usually at the
+     * other end of the load, not standing over the screen. The module's
+     * buzzer is one short beep, so it is repeated for the duration.
+     *
+     * <p>A second alarm restarts the first rather than stacking on it, and
+     * everything is released on a timer, so nothing can latch the beacon on
+     * for ever.
      */
     public void signalAlarm() {
-        try {
-            if (reader != null && settings.soundEnabled()) {
-                reader.buzzer();
-                reader.led();
-            }
-        } catch (Throwable t) {
-            Log.w(TAG, "buzzer failed", t);
-        }
-
+        final int millis = settings.alarmMillis();
         final int line = settings.alarmOutput();
+        final long until = System.currentTimeMillis() + millis;
+
+        cancelAlarm();
+
+        if (settings.soundEnabled()) {
+            alarmBeep = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (reader != null) {
+                            reader.buzzer();
+                            reader.led();
+                        }
+                    } catch (Throwable t) {
+                        Log.w(TAG, "buzzer failed", t);
+                    }
+
+                    if (System.currentTimeMillis() < until) {
+                        main.postDelayed(this, BEEP_EVERY_MS);
+                    }
+                }
+            };
+
+            main.post(alarmBeep);
+        }
 
         if (line < 1 || reader == null) {
             return;
@@ -547,15 +602,54 @@ public final class ReaderController {
 
         try {
             setOutput(line, true);
-            main.postDelayed(() -> {
+
+            alarmRelease = () -> {
                 try {
                     setOutput(line, false);
                 } catch (Throwable t) {
                     Log.w(TAG, "could not release alarm output", t);
                 }
-            }, 1500);
+            };
+
+            main.postDelayed(alarmRelease, millis);
         } catch (Throwable t) {
             Log.w(TAG, "could not drive alarm output", t);
+        }
+    }
+
+    /** Silences an alarm that is still running. */
+    public void cancelAlarm() {
+        if (alarmBeep != null) {
+            main.removeCallbacks(alarmBeep);
+            alarmBeep = null;
+        }
+
+        if (alarmRelease != null) {
+            main.removeCallbacks(alarmRelease);
+            alarmRelease.run();
+            alarmRelease = null;
+        }
+    }
+
+    /**
+     * Switches the output that feeds the gate sensor, if one is configured.
+     *
+     * <p>Wiring the sensor through a reader output means the gate can only
+     * trigger a read while a document is actually open on the screen. A pallet
+     * crossing at lunchtime then does nothing at all, rather than starting a
+     * session against whatever document happens to be loaded.
+     */
+    public void powerGate(boolean on) {
+        int line = settings.gatePowerOutput();
+
+        if (line < 1 || reader == null) {
+            return;
+        }
+
+        try {
+            setOutput(line, on);
+        } catch (Throwable t) {
+            Log.w(TAG, "could not switch the gate power output", t);
         }
     }
 
