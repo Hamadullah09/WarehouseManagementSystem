@@ -1,300 +1,312 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-  The gate sheet, laid out as the printed form the warehouse already uses:
-  document number, totals and user across the top, the movement in red beside
-  them, the outstanding rolls listed down the left, and the two figures that
-  matter boxed on the right.
+  The gate sheet, laid out as the printed form: document number and the two
+  totals across the top, the user and the movement beside them, the
+  outstanding rolls down the left, and the two balance figures boxed on the
+  right in red.
 
-  Light, black on white, large type. Read by people of every age from a metre
-  or two away, so nothing here is subtle: every button is filled and coloured,
-  and no state is signalled by shade alone.
+  Sized for the U300's panel, which is 1280x720 at 240dpi and therefore only
+  853 x 480 dp of usable space, a good deal less than the pixel count
+  suggests. Every dimension below is chosen against that budget, and the two
+  balance figures auto-size so they fill their box on a larger screen without
+  overflowing this one.
+
+  The alarm is a floating card in the bottom-right corner. It sits over the
+  sheet rather than in it, so raising an alarm never reflows anything or
+  pushes the buttons off the screen.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/page"
-    android:padding="8dp">
+    android:background="@color/page">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/sheet_title"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@color/ink"
-        android:gravity="center"
-        android:paddingBottom="6dp" />
-
-    <!-- The sheet -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="@drawable/bg_sheet"
-        android:padding="10dp">
+        android:padding="6dp">
 
-        <!-- Row 1: document number and the two totals -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/sheet_document"
-                style="@style/Sheet.Label" />
-
-            <TextView
-                android:id="@+id/document_number"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:layout_marginEnd="14dp"
-                style="@style/Sheet.Value" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/sheet_total_articles"
-                style="@style/Sheet.Label" />
-
-            <TextView
-                android:id="@+id/total_articles"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_marginEnd="14dp"
-                android:minWidth="70dp"
-                style="@style/Sheet.Value" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/sheet_total_qty"
-                style="@style/Sheet.Label" />
-
-            <TextView
-                android:id="@+id/total_quantity"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:minWidth="70dp"
-                style="@style/Sheet.Value" />
-        </LinearLayout>
-
-        <!-- Row 2: user, and the movement in red -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="6dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/sheet_user"
-                style="@style/Sheet.Label" />
-
-            <TextView
-                android:id="@+id/user_name"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:layout_marginEnd="14dp"
-                android:gravity="start"
-                style="@style/Sheet.Value" />
-
-            <TextView
-                android:id="@+id/movement"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="30sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05"
-                android:textColor="@color/figure"
-                android:gravity="center"
-                android:maxLines="1" />
-        </LinearLayout>
-
-        <!-- Body: the list, and the two figures -->
+        <!-- The sheet -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:baselineAligned="false">
+            android:orientation="vertical"
+            android:background="@drawable/bg_sheet"
+            android:padding="8dp">
 
+            <!-- Row 1: document number, then the two totals -->
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1.15"
-                android:orientation="vertical">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/sheet_balance_articles"
-                    style="@style/Sheet.Heading" />
+                    android:text="@string/sheet_document"
+                    style="@style/Sheet.Label" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rolls"
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
+                <TextView
+                    android:id="@+id/document_number"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginTop="4dp"
-                    android:scrollbars="vertical"
-                    android:clipToPadding="false" />
+                    android:layout_marginStart="5dp"
+                    android:layout_marginEnd="10dp"
+                    style="@style/Sheet.Value" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sheet_total_articles"
+                    style="@style/Sheet.Label" />
+
+                <TextView
+                    android:id="@+id/total_articles"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:layout_marginEnd="10dp"
+                    style="@style/Sheet.Value" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sheet_total_qty"
+                    style="@style/Sheet.Label" />
+
+                <TextView
+                    android:id="@+id/total_quantity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    style="@style/Sheet.Value" />
             </LinearLayout>
 
+            <!-- Row 2: user, and the movement in red -->
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:background="@drawable/bg_totals"
-                android:padding="8dp">
+                android:layout_marginTop="4dp">
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/sheet_balance_articles"
-                    style="@style/Sheet.Heading" />
+                    android:text="@string/sheet_user"
+                    style="@style/Sheet.Label" />
 
                 <TextView
-                    android:id="@+id/balance_articles"
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
+                    android:id="@+id/user_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:textSize="96sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/figure"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:autoSizeTextType="uniform"
-                    android:autoSizeMinTextSize="40sp"
-                    android:autoSizeMaxTextSize="110sp"
-                    android:maxLines="1" />
+                    android:layout_marginStart="5dp"
+                    android:layout_marginEnd="10dp"
+                    android:gravity="start"
+                    style="@style/Sheet.Value" />
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:id="@+id/movement"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="@string/sheet_balance_qty"
-                    style="@style/Sheet.Heading" />
-
-                <TextView
-                    android:id="@+id/balance_quantity"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="52sp"
+                    android:layout_weight="1"
+                    android:textSize="22sp"
                     android:textStyle="bold"
+                    android:letterSpacing="0.04"
                     android:textColor="@color/figure"
                     android:gravity="center"
-                    android:includeFontPadding="false"
                     android:maxLines="1" />
             </LinearLayout>
+
+            <!-- Body: the outstanding rolls, and the two figures -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp"
+                android:baselineAligned="false">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1.25"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sheet_balance_articles"
+                        style="@style/Sheet.Heading" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rolls"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:layout_marginTop="3dp"
+                        android:scrollbars="vertical"
+                        android:clipToPadding="false" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_totals"
+                    android:padding="6dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sheet_balance_articles"
+                        style="@style/Sheet.Heading" />
+
+                    <TextView
+                        android:id="@+id/balance_articles"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1.5"
+                        android:textColor="@color/figure"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:autoSizeTextType="uniform"
+                        android:autoSizeMinTextSize="28sp"
+                        android:autoSizeMaxTextSize="96sp"
+                        android:autoSizeStepGranularity="1sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sheet_balance_qty"
+                        style="@style/Sheet.Heading" />
+
+                    <TextView
+                        android:id="@+id/balance_quantity"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:textColor="@color/figure"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:autoSizeTextType="uniform"
+                        android:autoSizeMinTextSize="20sp"
+                        android:autoSizeMaxTextSize="52sp"
+                        android:autoSizeStepGranularity="1sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- What the reader is doing, and the tag it last saw -->
+            <TextView
+                android:id="@+id/status_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="5dp"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:background="@color/info_soft"
+                android:textColor="@color/info" />
+
+            <TextView
+                android:id="@+id/last_epc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:gravity="center"
+                android:textColor="@color/ink_muted"
+                android:maxLines="1"
+                android:ellipsize="middle" />
         </LinearLayout>
 
-        <!-- What the reader is doing, in words -->
-        <TextView
-            android:id="@+id/status_text"
+        <!-- Controls. Green go, red stop, grey back. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:padding="8dp"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:background="@color/info_soft"
-            android:textColor="@color/info" />
+            android:orientation="horizontal"
+            android:layout_marginTop="5dp">
 
-        <!-- The tag just read, and any problem with it -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/back"
+                style="@style/Sheet.Button"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="1"
+                android:text="@string/back"
+                app:backgroundTint="@color/button_back" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/start"
+                style="@style/Sheet.Button"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="1.6"
+                android:layout_marginStart="6dp"
+                android:text="@string/start"
+                app:backgroundTint="@color/button_start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/stop"
+                style="@style/Sheet.Button"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="1.6"
+                android:layout_marginStart="6dp"
+                android:text="@string/stop"
+                android:visibility="gone"
+                app:backgroundTint="@color/button_stop" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!--
+      Alarm: a card floating over the bottom-right corner. Out of the layout
+      flow entirely, so it can never move the buttons or squeeze the list.
+    -->
+    <LinearLayout
+        android:id="@+id/alarm_panel"
+        android:layout_width="360dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="60dp"
+        android:orientation="vertical"
+        android:background="@drawable/bg_alarm_card"
+        android:elevation="12dp"
+        android:padding="12dp"
+        android:visibility="gone">
+
         <TextView
-            android:id="@+id/last_epc"
+            android:id="@+id/alarm_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="#FFFFFF"
+            android:maxLines="1" />
+
+        <TextView
+            android:id="@+id/alarm_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:textColor="@color/ink_muted"
-            android:maxLines="1"
-            android:ellipsize="middle" />
-
-        <LinearLayout
-            android:id="@+id/alarm_panel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="4dp"
-            android:padding="10dp"
-            android:background="@color/alarm"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/alarm_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="30sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.08"
-                android:gravity="center"
-                android:textColor="#FFFFFF" />
-
-            <TextView
-                android:id="@+id/alarm_body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:gravity="center"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
+            android:textSize="13sp"
+            android:textColor="#FFFFFF"
+            android:maxLines="3"
+            android:ellipsize="end" />
     </LinearLayout>
-
-    <!-- Controls. Filled and coloured: green go, red stop, grey back. -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/back"
-            style="@style/Sheet.Button"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/back"
-            app:backgroundTint="@color/button_back" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/start"
-            style="@style/Sheet.Button"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.4"
-            android:layout_marginStart="8dp"
-            android:text="@string/start"
-            app:backgroundTint="@color/button_start" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/stop"
-            style="@style/Sheet.Button"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.4"
-            android:layout_marginStart="8dp"
-            android:text="@string/stop"
-            android:visibility="gone"
-            app:backgroundTint="@color/button_stop" />
-    </LinearLayout>
-</LinearLayout>
+</FrameLayout>

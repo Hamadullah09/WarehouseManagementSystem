@@ -13,12 +13,12 @@
         android:gravity="center_vertical"
         android:background="@color/surface"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
+        android:paddingVertical="7dp"
         android:elevation="2dp">
 
         <ImageView
-            android:layout_width="34dp"
-            android:layout_height="34dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:src="@drawable/brand_mark"
             android:scaleType="fitCenter"
             android:importantForAccessibility="no" />
@@ -34,7 +34,7 @@
                 android:id="@+id/signed_in"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="20sp"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/ink"
                 android:maxLines="1"
@@ -44,7 +44,7 @@
                 android:id="@+id/gate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="16sp"
+                android:textSize="12sp"
                 android:textColor="@color/brand_dark"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -52,10 +52,10 @@
         <!-- The person, top right. One tap for profile, users and logout. -->
         <TextView
             android:id="@+id/account"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:gravity="center"
-            android:textSize="24sp"
+            android:textSize="19sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
             android:background="@drawable/bg_avatar"
@@ -118,8 +118,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="10dp" />
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="6dp" />
 
             <TextView
                 android:id="@+id/empty"

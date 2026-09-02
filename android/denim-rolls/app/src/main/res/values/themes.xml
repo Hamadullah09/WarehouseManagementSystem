@@ -23,7 +23,7 @@
 
     <!-- Header label above a boxed value, as on the printed form. -->
     <style name="Sheet.Label" parent="">
-        <item name="android:textSize">17sp</item>
+        <item name="android:textSize">12sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/ink</item>
         <item name="android:textAllCaps">true</item>
@@ -31,20 +31,20 @@
 
     <!-- Boxed value: blue outline, black text, large. -->
     <style name="Sheet.Value" parent="">
-        <item name="android:textSize">22sp</item>
+        <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/ink</item>
         <item name="android:background">@drawable/bg_field</item>
-        <item name="android:paddingHorizontal">10dp</item>
-        <item name="android:paddingVertical">4dp</item>
+        <item name="android:paddingHorizontal">7dp</item>
+        <item name="android:paddingVertical">3dp</item>
         <item name="android:gravity">center</item>
-        <item name="android:minWidth">90dp</item>
+        <item name="android:minWidth">54dp</item>
         <item name="android:maxLines">1</item>
     </style>
 
     <!-- Section heading, e.g. BALANCE ARTICLES. -->
     <style name="Sheet.Heading" parent="">
-        <item name="android:textSize">20sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/ink</item>
         <item name="android:textAllCaps">true</item>
@@ -53,11 +53,13 @@
 
     <!-- Every button is filled and coloured; nothing important is a grey outline. -->
     <style name="Sheet.Button" parent="Widget.Material3.Button">
-        <item name="android:textSize">22sp</item>
+        <item name="android:textSize">17sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:letterSpacing">0.08</item>
         <item name="android:textColor">#FFFFFF</item>
-        <item name="cornerRadius">10dp</item>
-        <item name="android:minHeight">60dp</item>
+        <item name="cornerRadius">8dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
     </style>
 </resources>
