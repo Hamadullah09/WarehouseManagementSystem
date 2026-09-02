@@ -190,6 +190,136 @@ public final class ApiClient {
                 requestObject("POST", "/api/documents/" + documentId + "/scan-sessions", body, true));
     }
 
+    // --------------------------------------------------------------- account
+
+    /** Asks an administrator to set a new password. Always answers the same way. */
+    public String forgotPassword(String user) throws ApiException {
+        JSONObject body = new JSONObject();
+
+        try {
+            body.put("userName", user);
+        } catch (JSONException e) {
+            throw new ApiException("Could not build the request.", e);
+        }
+
+        JSONObject response = requestObject("POST", "/api/auth/forgot-password", body, false);
+
+        return response.optString("message",
+                "Your supervisor has been asked to set a new password for you.");
+    }
+
+    /** Changes the signed-in user's own password. */
+    public void changePassword(String current, String replacement) throws ApiException {
+        JSONObject body = new JSONObject();
+
+        try {
+            body.put("currentPassword", current);
+            body.put("newPassword", replacement);
+        } catch (JSONException e) {
+            throw new ApiException("Could not build the request.", e);
+        }
+
+        request("POST", "/api/auth/change-password", body, true);
+    }
+
+    // ----------------------------------------------------------------- users
+
+    public List<WarehouseUser> listUsers() throws ApiException {
+        JSONArray array = requestArray("GET", "/api/users");
+        List<WarehouseUser> users = new ArrayList<>();
+
+        for (int i = 0; array != null && i < array.length(); i++) {
+            users.add(WarehouseUser.from(array.optJSONObject(i)));
+        }
+
+        return users;
+    }
+
+    public List<String> listRoles() throws ApiException {
+        JSONArray array = requestArray("GET", "/api/users/roles");
+        List<String> roles = new ArrayList<>();
+
+        for (int i = 0; array != null && i < array.length(); i++) {
+            JSONObject role = array.optJSONObject(i);
+
+            if (role != null) {
+                roles.add(role.optString("name"));
+            }
+        }
+
+        return roles;
+    }
+
+    public void createUser(String user, String displayName, String email,
+                           String password, String role) throws ApiException {
+        JSONObject body = new JSONObject();
+
+        try {
+            body.put("userName", user);
+            body.put("displayName", displayName);
+            body.put("email", email);
+            body.put("password", password);
+            body.put("roles", new JSONArray().put(role));
+            body.put("mustChangePassword", true);
+        } catch (JSONException e) {
+            throw new ApiException("Could not build the request.", e);
+        }
+
+        request("POST", "/api/users", body, true);
+    }
+
+    public void updateUser(int id, String displayName, String email,
+                           String role, boolean active) throws ApiException {
+        JSONObject body = new JSONObject();
+
+        try {
+            body.put("displayName", displayName);
+            body.put("email", email);
+            body.put("roles", new JSONArray().put(role));
+            body.put("isActive", active);
+        } catch (JSONException e) {
+            throw new ApiException("Could not build the request.", e);
+        }
+
+        request("PUT", "/api/users/" + id, body, true);
+    }
+
+    public void resetUserPassword(int id, String password) throws ApiException {
+        JSONObject body = new JSONObject();
+
+        try {
+            body.put("newPassword", password);
+            body.put("mustChangePassword", true);
+        } catch (JSONException e) {
+            throw new ApiException("Could not build the request.", e);
+        }
+
+        request("POST", "/api/users/" + id + "/reset-password", body, true);
+    }
+
+    /** Removes an account, or deactivates it when it has history. Returns what happened. */
+    public String deleteUser(int id) throws ApiException {
+        String text = request("DELETE", "/api/users/" + id, null, true);
+
+        try {
+            return TextUtils.isEmpty(text)
+                    ? "Account removed."
+                    : new JSONObject(text).optString("message", "Account removed.");
+        } catch (JSONException e) {
+            return "Account removed.";
+        }
+    }
+
+    private JSONArray requestArray(String method, String path) throws ApiException {
+        String text = request(method, path, null, true);
+
+        try {
+            return TextUtils.isEmpty(text) ? new JSONArray() : new JSONArray(text);
+        } catch (JSONException e) {
+            throw new ApiException("The server returned a list the app could not read.", e);
+        }
+    }
+
     // -------------------------------------------------------------- plumbing
 
     private JSONObject requestObject(String method, String path, JSONObject body, boolean authenticated)

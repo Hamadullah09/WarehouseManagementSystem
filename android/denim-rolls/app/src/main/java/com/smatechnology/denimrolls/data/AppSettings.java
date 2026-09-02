@@ -29,6 +29,9 @@ public final class AppSettings {
     private static final String KEY_ALARM_OUTPUT = "alarm_output";
     private static final String KEY_SOUND = "sound_enabled";
     private static final String KEY_NO_READ = "no_read_timeout_ms";
+    private static final String KEY_GPIO_START = "gpio_start_enabled";
+    private static final String KEY_GPIO_INPUT = "gpio_input_pin";
+    private static final String KEY_GPIO_ACTIVE_HIGH = "gpio_active_high";
 
     /**
      * Silence, in milliseconds, that counts as "something went past without a
@@ -42,6 +45,9 @@ public final class AppSettings {
 
     /** GPO line driven on an alarm. 0 disables the output entirely. */
     public static final int DEFAULT_ALARM_OUTPUT = 1;
+
+    /** Input line the gate signal is wired to, 1-4. */
+    public static final int DEFAULT_GPIO_INPUT = 1;
 
     private final SharedPreferences prefs;
 
@@ -130,6 +136,39 @@ public final class AppSettings {
 
     public void setAlarmOutput(int value) {
         prefs.edit().putInt(KEY_ALARM_OUTPUT, Math.max(0, Math.min(4, value))).apply();
+    }
+
+    /**
+     * Whether the gate's own 12V signal starts and stops the scan.
+     *
+     * <p>Off by default: the buttons work everywhere, whereas the input only
+     * works once a sensor is actually wired to the terminal. Switching it on
+     * makes the reader follow the gate rather than the operator.
+     */
+    public boolean gpioStartEnabled() {
+        return prefs.getBoolean(KEY_GPIO_START, false);
+    }
+
+    public void setGpioStartEnabled(boolean value) {
+        prefs.edit().putBoolean(KEY_GPIO_START, value).apply();
+    }
+
+    /** Input line carrying the gate signal, 1-4. */
+    public int gpioInputPin() {
+        return prefs.getInt(KEY_GPIO_INPUT, DEFAULT_GPIO_INPUT);
+    }
+
+    public void setGpioInputPin(int value) {
+        prefs.edit().putInt(KEY_GPIO_INPUT, Math.max(1, Math.min(4, value))).apply();
+    }
+
+    /** True when 12V present means "gate active". False for a normally-closed sensor. */
+    public boolean gpioActiveHigh() {
+        return prefs.getBoolean(KEY_GPIO_ACTIVE_HIGH, true);
+    }
+
+    public void setGpioActiveHigh(boolean value) {
+        prefs.edit().putBoolean(KEY_GPIO_ACTIVE_HIGH, value).apply();
     }
 
     public boolean soundEnabled() {

@@ -46,6 +46,14 @@ public class User
 
     public DateTimeOffset? LastLoginAt { get; set; }
 
+    /// <summary>
+    /// Set when the user asks for a password reset from the sign-in screen.
+    /// There is no mail server in a warehouse, so the request simply surfaces
+    /// on the administrator's user list; they set a new password and tell the
+    /// person face to face, which is how it happens on a shop floor anyway.
+    /// </summary>
+    public DateTimeOffset? PasswordResetRequestedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset? UpdatedAt { get; set; }

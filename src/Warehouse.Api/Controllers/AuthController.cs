@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Warehouse.Api.Services;
 using Warehouse.Application.Abstractions;
@@ -32,6 +33,13 @@ public sealed record LoginResponse
     public required IReadOnlyList<string> Roles { get; init; }
 
     public required bool MustChangePassword { get; init; }
+}
+
+public sealed record ForgotPasswordRequest
+{
+    [Required]
+    [MaxLength(64)]
+    public string UserName { get; init; } = string.Empty;
 }
 
 public sealed record ChangePasswordRequest
@@ -132,4 +140,36 @@ public sealed class AuthController(
             .Select(c => c.Value)
             .ToList()
     });
+
+    /// <summary>
+    /// Records that somebody cannot get in.
+    /// </summary>
+    /// <remarks>
+    /// Always answers the same way, whether or not the account exists, so the
+    /// endpoint cannot be used to find out who has an account. There is no
+    /// mail server here: the request appears on the administrator's user list
+    /// and they set a new password.
+    /// </remarks>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        [FromServices] IWarehouseDbContext db,
+        [FromServices] IClock clock,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(
+            u => u.UserName == request.UserName.Trim(), cancellationToken);
+
+        if (user is not null)
+        {
+            user.PasswordResetRequestedAt = clock.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return Ok(new
+        {
+            message = "Your supervisor has been notified. Ask them to set a new password for you."
+        });
+    }
 }

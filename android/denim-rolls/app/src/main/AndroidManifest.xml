@@ -39,6 +39,18 @@
             android:keepScreenOn="true" />
 
         <activity
+            android:name=".ui.ProfileActivity"
+            android:exported="false"
+            android:screenOrientation="fullSensor"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.UsersActivity"
+            android:exported="false"
+            android:screenOrientation="fullSensor"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.SettingsActivity"
             android:exported="false"
             android:screenOrientation="fullSensor"

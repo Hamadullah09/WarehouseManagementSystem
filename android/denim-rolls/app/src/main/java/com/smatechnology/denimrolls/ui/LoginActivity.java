@@ -59,8 +59,15 @@ public final class LoginActivity extends AppCompatActivity {
         targetText = findViewById(R.id.target);
 
         signInButton.setOnClickListener(v -> attemptSignIn());
-        findViewById(R.id.settings).setOnClickListener(
-                v -> startActivity(new Intent(this, SettingsActivity.class)));
+        findViewById(R.id.forgot).setOnClickListener(v -> forgotPassword());
+
+        // Deployment settings are for whoever installs the reader, not for the
+        // people who use it. A long press on the logo reveals them, so the
+        // sign-in screen stays as simple as it looks.
+        findViewById(R.id.logo).setOnLongClickListener(v -> {
+            startActivity(new Intent(this, SettingsActivity.class));
+            return true;
+        });
 
         userField.setText(api.userName());
     }
@@ -70,8 +77,7 @@ public final class LoginActivity extends AppCompatActivity {
         super.onResume();
 
         if (settings.isConfigured()) {
-            targetText.setText(getString(
-                    R.string.login_target, settings.gateCode(), settings.serverUrl()));
+            targetText.setText(getString(R.string.login_target, settings.gateCode()));
         } else {
             targetText.setText(R.string.login_unconfigured);
         }
@@ -110,6 +116,48 @@ public final class LoginActivity extends AppCompatActivity {
                     setBusy(false);
                     passwordField.setText("");
                     openDocuments();
+                });
+            } catch (ApiClient.ApiException e) {
+                runOnUiThread(() -> {
+                    setBusy(false);
+                    showError(e.getMessage());
+                });
+            }
+        });
+    }
+
+    /**
+     * Records that somebody cannot get in.
+     *
+     * <p>There is no mail server in a warehouse, so this does not send
+     * anything: it flags the account for the supervisor, who sets a new
+     * password on the Users screen and tells the person. That is how it
+     * happens on a shop floor anyway.
+     */
+    private void forgotPassword() {
+        String user = text(userField);
+
+        if (TextUtils.isEmpty(user)) {
+            showError(getString(R.string.forgot_prompt));
+            userField.requestFocus();
+
+            return;
+        }
+
+        setBusy(true);
+
+        io.execute(() -> {
+            try {
+                String message = api.forgotPassword(user);
+
+                runOnUiThread(() -> {
+                    setBusy(false);
+
+                    new androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle(R.string.forgot_password)
+                            .setMessage(message)
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
                 });
             } catch (ApiClient.ApiException e) {
                 runOnUiThread(() -> {

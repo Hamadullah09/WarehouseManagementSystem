@@ -6,11 +6,13 @@ import android.os.Looper;
 import android.util.Log;
 
 import com.rscja.deviceapi.RFIDWithUHFA4;
+import com.rscja.deviceapi.entity.GPIStateEntity;
 import com.rscja.deviceapi.entity.UHFTAGInfo;
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback;
 import com.smatechnology.denimrolls.data.AppSettings;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -73,6 +75,13 @@ public final class ReaderController {
 
         /** Reading actually started or stopped. */
         void onInventoryStateChanged(boolean running);
+
+        /**
+         * The gate input changed. Only raised when GPIO start is switched on.
+         *
+         * @param active true when the gate signal is present
+         */
+        void onGateSignal(boolean active);
     }
 
     private final Context context;
@@ -88,6 +97,8 @@ public final class ReaderController {
 
     private RFIDWithUHFA4 reader;
     private Listener listener;
+    private Runnable gpiWatcher;
+    private Boolean lastGateSignal;
 
     public ReaderController(Context context) {
         this.context = context.getApplicationContext();
@@ -242,6 +253,7 @@ public final class ReaderController {
 
     /** Releases the module. Call from the owning screen's onDestroy. */
     public void release() {
+        stopGateInputWatch();
         stop();
 
         try {
@@ -294,6 +306,84 @@ public final class ReaderController {
                 listener.onEpcAccepted(epc, rssi, ant);
             }
         });
+    }
+
+    // ------------------------------------------------------------ gate input
+
+    /**
+     * Watches the gate input and reports edges.
+     *
+     * <p>Polled, not pushed. The on-device SDK exposes {@code inputStatus()}
+     * and no input callback, which is the reverse of the host-side jar: there,
+     * GPI arrives through a callback and inputStatus is not public. Polling
+     * four times a second is far below anything a person can move a pallet
+     * through, and costs nothing measurable.
+     */
+    public void startGateInputWatch() {
+        if (!settings.gpioStartEnabled() || gpiWatcher != null) {
+            return;
+        }
+
+        final String wanted = "GPI" + settings.gpioInputPin();
+        final boolean activeHigh = settings.gpioActiveHigh();
+        lastGateSignal = null;
+
+        gpiWatcher = new Runnable() {
+            @Override
+            public void run() {
+                Boolean level = readInput(wanted);
+
+                if (level != null) {
+                    boolean active = activeHigh == level;
+
+                    if (lastGateSignal == null || lastGateSignal != active) {
+                        lastGateSignal = active;
+
+                        if (listener != null) {
+                            listener.onGateSignal(active);
+                        }
+                    }
+                }
+
+                main.postDelayed(this, 250);
+            }
+        };
+
+        main.postDelayed(gpiWatcher, 250);
+        Log.i(TAG, "watching " + wanted + " for the gate signal");
+    }
+
+    public void stopGateInputWatch() {
+        if (gpiWatcher != null) {
+            main.removeCallbacks(gpiWatcher);
+            gpiWatcher = null;
+            lastGateSignal = null;
+        }
+    }
+
+    /** Current level of one input, or null when it cannot be read. */
+    private Boolean readInput(String pin) {
+        if (reader == null) {
+            return null;
+        }
+
+        try {
+            List<GPIStateEntity> states = reader.inputStatus();
+
+            if (states == null) {
+                return null;
+            }
+
+            for (GPIStateEntity state : states) {
+                if (pin.equalsIgnoreCase(state.getGpiName())) {
+                    return state.getGpiState() != 0;
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "inputStatus failed", t);
+        }
+
+        return null;
     }
 
     // ---------------------------------------------------------------- output

@@ -34,7 +34,7 @@
                 android:id="@+id/signed_in"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:textColor="@color/ink"
                 android:maxLines="1"
@@ -44,26 +44,24 @@
                 android:id="@+id/gate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="16sp"
                 android:textColor="@color/brand_dark"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/settings"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings"
-            android:textSize="12sp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/sign_out"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/sign_out"
-            android:textSize="12sp" />
+        <!-- The person, top right. One tap for profile, users and logout. -->
+        <TextView
+            android:id="@+id/account"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:gravity="center"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_avatar"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="@string/profile" />
     </LinearLayout>
 
     <HorizontalScrollView

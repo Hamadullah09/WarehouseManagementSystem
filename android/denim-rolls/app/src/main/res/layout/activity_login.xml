@@ -17,8 +17,9 @@
         <!-- Sized in dp rather than stretched: the mark stays legible on a
              handheld and on a 720p panel without a second asset. -->
         <ImageView
-            android:layout_width="96dp"
-            android:layout_height="96dp"
+            android:id="@+id/logo"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
             android:src="@drawable/brand_mark"
             android:adjustViewBounds="true"
             android:scaleType="fitCenter"
@@ -29,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:text="@string/app_name"
-            android:textSize="30sp"
+            android:textSize="38sp"
             android:textStyle="bold"
             android:letterSpacing="0.06"
             android:textColor="@color/ink" />
@@ -39,7 +40,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="@string/login_subtitle"
-            android:textSize="14sp"
+            android:textSize="18sp"
             android:textColor="@color/ink_muted" />
 
         <TextView
@@ -47,7 +48,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:textSize="12sp"
+            android:textSize="17sp"
             android:textColor="@color/brand_dark"
             android:textStyle="bold"
             android:gravity="center" />
@@ -82,7 +83,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textColor="@color/alarm"
-                        android:textSize="13sp" />
+                        android:textSize="17sp" />
                 </LinearLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
@@ -120,10 +121,10 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/sign_in"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
+                    android:layout_height="64dp"
                     android:layout_marginTop="20dp"
                     android:text="@string/sign_in"
-                    android:textSize="16sp"
+                    android:textSize="22sp"
                     android:textStyle="bold"
                     app:cornerRadius="10dp" />
 
@@ -137,12 +138,14 @@
                     android:visibility="gone" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/settings"
+                    android:id="@+id/forgot"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/settings" />
+                    android:layout_marginTop="8dp"
+                    android:text="@string/forgot_password"
+                    android:textSize="18sp"
+                    android:textColor="@color/info" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -151,7 +154,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:text="@string/brand"
-            android:textSize="12sp"
+            android:textSize="17sp"
             android:textColor="@color/ink_muted" />
     </LinearLayout>
 </ScrollView>

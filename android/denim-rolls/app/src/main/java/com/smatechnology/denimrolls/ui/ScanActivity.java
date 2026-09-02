@@ -1,7 +1,8 @@
 package com.smatechnology.denimrolls.ui;
 
 import android.os.Bundle;
-import android.os.SystemClock;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,67 +37,63 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The gate screen: one document, the reader, and a verdict.
+ * The gate sheet: one document, the reader, and a verdict.
  *
- * <p>Reads are checked against the document as they arrive so the operator is
- * told immediately when a roll does not belong — while the load is still in
- * front of them and something can be done about it. That check is a courtesy,
- * not the decision: on stop the whole session goes to the server, which
- * re-validates against the database and is the only thing that moves stock.
+ * <p>Laid out as the printed form the warehouse already uses, so an operator
+ * who knows the paper knows this. Reads are checked against the document as
+ * they arrive, and a roll that does not belong is called out immediately --
+ * while the load is still in front of them and something can be done about it.
  *
- * <p>Laid out dark and large. This runs on a panel above a loading bay, not on
- * a desk.
+ * <p>That check is a courtesy, not the decision. On stop the whole session
+ * goes to the server, which re-validates against the database and is the only
+ * thing that can move stock.
+ *
+ * <p>Scanning starts from the buttons, or from the gate's own 12V signal on a
+ * GPIO input where the reader is wired to one.
  */
 public final class ScanActivity extends AppCompatActivity implements ReaderController.Listener {
 
     public static final String EXTRA_DOCUMENT_ID = "document_id";
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    /** How long an alarm stays on screen before clearing itself. */
+    private static final long ALARM_VISIBLE_MS = 5000L;
 
-    /** Distinct tags accepted this session, in the order they arrived. */
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final Handler ui = new Handler(Looper.getMainLooper());
+
+    /** Distinct tags accepted this session, in arrival order. */
     private final Set<String> accepted = new LinkedHashSet<>();
 
     private final List<Row> rows = new ArrayList<>();
+
+    private final Runnable clearAlarm = () -> this.alarmPanel.setVisibility(View.GONE);
+    private Runnable silenceCheck;
 
     private ApiClient api;
     private AppSettings settings;
     private ReaderController reader;
     private DocumentDetail document;
 
-    /** How long an alarm stays on screen before clearing itself. */
-    private static final long ALARM_VISIBLE_MS = 5000L;
-
-    private final android.os.Handler watchdog = new android.os.Handler(android.os.Looper.getMainLooper());
-    private final android.os.Handler alarmTimer = new android.os.Handler(android.os.Looper.getMainLooper());
-    private final Runnable hideAlarm = () -> this.alarmPanel.setVisibility(View.GONE);
-    private Runnable silenceCheck;
-    private long lastReadAt;
-    private boolean silenceReported;
-
     private int documentId;
     private long sessionStartedAt;
+    private long lastReadAt;
+    private boolean silenceReported;
     private String sessionKey;
-    private boolean sessionHadAlarm;
 
     private TextView documentNumber;
     private TextView movement;
     private TextView userName;
     private TextView totalArticles;
     private TextView totalQuantity;
-    private TextView totalsLine;
     private TextView balanceArticles;
     private TextView balanceQuantity;
     private TextView statusText;
     private TextView lastEpc;
-    private View statusPanel;
     private View alarmPanel;
     private TextView alarmTitle;
     private TextView alarmBody;
     private MaterialButton startButton;
     private MaterialButton stopButton;
-    private TextView progressText;
-    private com.google.android.material.progressindicator.LinearProgressIndicator progressBar;
-    private TextView controlHelp;
     private RowAdapter adapter;
 
     @Override
@@ -109,40 +106,20 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         settings = new AppSettings(this);
         documentId = getIntent().getIntExtra(EXTRA_DOCUMENT_ID, 0);
 
-        bindViews();
-
-        reader = new ReaderController(this);
-        reader.setListener(this);
-
-        startButton.setOnClickListener(v -> startSession());
-        stopButton.setOnClickListener(v -> confirmStop());
-        findViewById(R.id.close).setOnClickListener(v -> finish());
-
-        loadDocument();
-    }
-
-    private void bindViews() {
         documentNumber = findViewById(R.id.document_number);
         movement = findViewById(R.id.movement);
         userName = findViewById(R.id.user_name);
         totalArticles = findViewById(R.id.total_articles);
-        totalQuantity = findViewById(R.id.total_quantity);   // portrait only
-        totalsLine = findViewById(R.id.totals_line);         // landscape only
+        totalQuantity = findViewById(R.id.total_quantity);
         balanceArticles = findViewById(R.id.balance_articles);
         balanceQuantity = findViewById(R.id.balance_quantity);
         statusText = findViewById(R.id.status_text);
-        statusPanel = findViewById(R.id.status_panel);
         lastEpc = findViewById(R.id.last_epc);
         alarmPanel = findViewById(R.id.alarm_panel);
         alarmTitle = findViewById(R.id.alarm_title);
         alarmBody = findViewById(R.id.alarm_body);
         startButton = findViewById(R.id.start);
         stopButton = findViewById(R.id.stop);
-        progressText = findViewById(R.id.progress_text);
-        progressBar = findViewById(R.id.progress_bar);
-        controlHelp = findViewById(R.id.control_help); // absent in landscape
-
-        findViewById(R.id.alarm_dismiss).setOnClickListener(v -> hideAlarm());
 
         RecyclerView list = findViewById(R.id.rolls);
         list.setLayoutManager(new LinearLayoutManager(this));
@@ -150,12 +127,21 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         list.setAdapter(adapter);
 
         userName.setText(api.displayName());
+
+        reader = new ReaderController(this);
+        reader.setListener(this);
+
+        startButton.setOnClickListener(v -> startSession());
+        stopButton.setOnClickListener(v -> confirmStop());
+        findViewById(R.id.back).setOnClickListener(v -> finish());
+
+        loadDocument();
     }
 
-    // ------------------------------------------------------------- document
+    // -------------------------------------------------------------- document
 
     private void loadDocument() {
-        setStatus(getString(R.string.scan_loading), R.color.scan_muted);
+        setStatus(getString(R.string.scan_loading), R.color.info, R.color.info_soft);
 
         io.execute(() -> {
             try {
@@ -163,11 +149,15 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
                 runOnUiThread(() -> {
                     document = loaded;
-                    renderDocument();
+                    render();
 
-                    // Opening the module here rather than on first press keeps
-                    // the delay off the critical path at the gate.
-                    io.execute(() -> reader.initialise());
+                    // Open the module here so the delay is not on the critical
+                    // path when somebody is standing at the gate.
+                    io.execute(() -> {
+                        if (reader.initialise()) {
+                            runOnUiThread(() -> reader.startGateInputWatch());
+                        }
+                    });
                 });
             } catch (ApiClient.ApiException e) {
                 runOnUiThread(() -> showAlarm(getString(R.string.scan_load_failed), e.getMessage()));
@@ -175,35 +165,17 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         });
     }
 
-    private void renderDocument() {
+    private void render() {
         documentNumber.setText(document.documentNumber);
         movement.setText(document.type.toUpperCase(Locale.US));
-        movement.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
-                getColor(document.isInward() ? R.color.ok : R.color.info)));
-
-        showTotals();
+        totalArticles.setText(String.valueOf(document.expectedArticles));
+        totalQuantity.setText(String.valueOf(document.expectedQuantity));
 
         rebuildRows();
-        updateBalances();
+        updateFigures();
 
-        setStatus(getString(R.string.scan_ready), R.color.scan_text);
+        setStatus(getString(R.string.scan_ready), R.color.info, R.color.info_soft);
         startButton.setEnabled(true);
-    }
-
-    /** Landscape shows totals on the header line; portrait gives them their own tiles. */
-    private void showTotals() {
-        if (totalsLine != null) {
-            totalsLine.setText(getString(R.string.scan_totals_line,
-                    document.expectedArticles, document.expectedQuantity));
-        }
-
-        if (totalArticles != null) {
-            totalArticles.setText(String.valueOf(document.expectedArticles));
-        }
-
-        if (totalQuantity != null) {
-            totalQuantity.setText(String.valueOf(document.expectedQuantity));
-        }
     }
 
     private void rebuildRows() {
@@ -216,19 +188,12 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         adapter.notifyDataSetChanged();
     }
 
-    private void updateBalances() {
-        int outstanding = document.outstanding();
-        int total = document.items.size();
-        int done = total - outstanding;
-
-        balanceArticles.setText(String.valueOf(outstanding));
+    private void updateFigures() {
+        balanceArticles.setText(String.valueOf(document.outstanding()));
         balanceQuantity.setText(String.valueOf(document.outstandingQuantity()));
-
-        progressText.setText(getString(R.string.scan_progress, done, total));
-        progressBar.setProgress(total == 0 ? 0 : (done * 100) / total);
     }
 
-    // -------------------------------------------------------------- session
+    // --------------------------------------------------------------- session
 
     private void startSession() {
         if (document == null) {
@@ -236,7 +201,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         }
 
         accepted.clear();
-        sessionHadAlarm = false;
         sessionKey = UUID.randomUUID().toString();
         sessionStartedAt = System.currentTimeMillis();
 
@@ -245,7 +209,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         }
 
         rebuildRows();
-        updateBalances();
+        updateFigures();
         hideAlarm();
 
         if (!reader.start()) {
@@ -254,12 +218,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
         startButton.setVisibility(View.GONE);
         stopButton.setVisibility(View.VISIBLE);
-        if (controlHelp != null) {
-            controlHelp.setText(R.string.scan_help_stop);
-        }
 
-        setStatus(getString(R.string.scan_reading), R.color.info);
-        armSilenceWatchdog();
+        setStatus(getString(R.string.scan_reading), R.color.ok, R.color.ok_soft);
+        armSilenceWatch();
     }
 
     private void confirmStop() {
@@ -271,74 +232,21 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     }
 
     private void stopSession() {
-        disarmSilenceWatchdog();
+        disarmSilenceWatch();
         reader.stop();
 
         startButton.setVisibility(View.VISIBLE);
         stopButton.setVisibility(View.GONE);
         startButton.setEnabled(false);
-        if (controlHelp != null) {
-            controlHelp.setText(R.string.scan_help_start);
-        }
 
-        setStatus(getString(R.string.scan_stopped), R.color.warn);
+        setStatus(getString(R.string.scan_stopped), R.color.warn, R.color.warn_soft);
 
-        // Nothing read at all means something may have gone through untagged.
         if (accepted.isEmpty()) {
             reader.signalAlarm();
-            showAlarm(getString(R.string.scan_invalid_title), getString(R.string.scan_no_epc));
+            showAlarm(getString(R.string.scan_no_tag_title), getString(R.string.scan_no_epc));
         }
 
         submitSession();
-    }
-
-    /**
-     * Warns when nothing has been read for the configured window.
-     *
-     * <p>A roll going past without a readable tag looks exactly like silence,
-     * so silence is what gets watched. It fires once per quiet spell rather
-     * than every tick: an operator who has already been told does not need
-     * telling four times a second, and a latched beacon tells them nothing new.
-     */
-    private void armSilenceWatchdog() {
-        final int timeout = settings.noReadTimeoutMs();
-
-        if (timeout <= 0) {
-            return;
-        }
-
-        lastReadAt = System.currentTimeMillis();
-        silenceReported = false;
-
-        silenceCheck = new Runnable() {
-            @Override
-            public void run() {
-                if (!reader.isRunning()) {
-                    return;
-                }
-
-                long quiet = System.currentTimeMillis() - lastReadAt;
-
-                if (quiet >= timeout && !silenceReported) {
-                    silenceReported = true;
-                    sessionHadAlarm = true;
-
-                    reader.signalAlarm();
-                    showAlarm(getString(R.string.scan_no_tag_title), getString(R.string.scan_no_epc));
-                }
-
-                watchdog.postDelayed(this, Math.max(200, timeout / 4));
-            }
-        };
-
-        watchdog.postDelayed(silenceCheck, timeout);
-    }
-
-    private void disarmSilenceWatchdog() {
-        if (silenceCheck != null) {
-            watchdog.removeCallbacks(silenceCheck);
-            silenceCheck = null;
-        }
     }
 
     private void submitSession() {
@@ -387,17 +295,16 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         if (result.passed) {
             reader.signalAccepted();
             hideAlarm();
-            setStatus(getString(R.string.scan_pass), R.color.ok);
+            setStatus(getString(R.string.scan_pass), R.color.ok, R.color.ok_soft);
         } else {
             reader.signalAlarm();
-            setStatus(result.summary, R.color.alarm);
+            setStatus(result.summary, R.color.alarm, R.color.alarm_soft);
         }
 
-        // Reload so the committed state on screen is the server's, not ours.
-        loadDocumentQuietly();
+        refreshQuietly();
     }
 
-    private void loadDocumentQuietly() {
+    private void refreshQuietly() {
         io.execute(() -> {
             try {
                 DocumentDetail loaded = api.getDocument(documentId);
@@ -405,22 +312,23 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
                 runOnUiThread(() -> {
                     document = loaded;
                     documentNumber.setText(document.documentNumber);
-                    showTotals();
+                    totalArticles.setText(String.valueOf(document.expectedArticles));
+                    totalQuantity.setText(String.valueOf(document.expectedQuantity));
                     rebuildRows();
-                    updateBalances();
+                    updateFigures();
                 });
             } catch (ApiClient.ApiException ignored) {
-                // The verdict has already been shown; a refresh failure here is
-                // not worth a second error in front of the operator.
+                // The verdict is already on screen; a failed refresh is not
+                // worth a second error in front of the operator.
             }
         });
     }
 
-    // -------------------------------------------------- ReaderController hooks
+    // ---------------------------------------------------------- reader hooks
 
     @Override
     public void onReaderReady(String version) {
-        // Nothing to show: readiness is implied by START being enabled.
+        // Readiness is implied by START being enabled.
     }
 
     @Override
@@ -434,13 +342,23 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         startButton.setVisibility(running ? View.GONE : View.VISIBLE);
     }
 
+    /** The gate's own signal, where the reader is wired to one. */
+    @Override
+    public void onGateSignal(boolean active) {
+        if (active && !reader.isRunning()) {
+            startSession();
+        } else if (!active && reader.isRunning()) {
+            stopSession();
+        }
+    }
+
     @Override
     public void onEpcAccepted(String epc, String rssi, String antenna) {
         if (document == null) {
             return;
         }
 
-        lastEpc.setText(epc);
+        lastEpc.setText(getString(R.string.scan_last_tag, epc));
         lastReadAt = System.currentTimeMillis();
         silenceReported = false;
 
@@ -451,10 +369,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         DocumentItem item = document.findByEpc(epc);
 
         if (item == null) {
-            // On the floor the distinction that matters is "not on this
-            // document"; whether the tag is unknown to the warehouse entirely
-            // is the server's call and comes back with the verdict.
-            sessionHadAlarm = true;
+            // What matters on the floor is "not on this document". Whether the
+            // tag is unknown to the warehouse entirely is the server's call and
+            // comes back with the verdict.
             reader.signalAlarm();
             showAlarm(getString(R.string.scan_invalid_title),
                     getString(R.string.scan_invalid_body, document.documentNumber, epc));
@@ -467,41 +384,76 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
         item.scannedNow = true;
         reader.signalAccepted();
-
-        if (!sessionHadAlarm) {
-            hideAlarm();
-        }
-
         rebuildRows();
-        updateBalances();
+        updateFigures();
     }
 
-    // ----------------------------------------------------------------- chrome
-
-    private void setStatus(String text, int colourRes) {
-        statusText.setText(text);
-        statusText.setTextColor(getColor(colourRes));
-    }
+    // -------------------------------------------------------------- watchdog
 
     /**
-     * Shows an alarm and clears it after {@link #ALARM_VISIBLE_MS}.
+     * Raises the alarm when nothing has been read for the configured window.
      *
-     * <p>Auto-clearing matters more than it looks: a banner that stays until
-     * dismissed means the operator is either tapping the screen mid-pass or
-     * working under a red block that no longer describes anything. Each new
-     * alarm restarts the timer, so a run of bad reads keeps the warning up.
+     * <p>A roll going past without a working tag looks exactly like silence,
+     * so silence is what gets watched. It fires once per quiet spell: an
+     * operator who has been told does not need telling four times a second.
      */
+    private void armSilenceWatch() {
+        final int timeout = settings.noReadTimeoutMs();
+
+        if (timeout <= 0) {
+            return;
+        }
+
+        lastReadAt = System.currentTimeMillis();
+        silenceReported = false;
+
+        silenceCheck = new Runnable() {
+            @Override
+            public void run() {
+                if (!reader.isRunning()) {
+                    return;
+                }
+
+                if (System.currentTimeMillis() - lastReadAt >= timeout && !silenceReported) {
+                    silenceReported = true;
+                    reader.signalAlarm();
+                    showAlarm(getString(R.string.scan_no_tag_title), getString(R.string.scan_no_epc));
+                }
+
+                ui.postDelayed(this, Math.max(200, timeout / 4));
+            }
+        };
+
+        ui.postDelayed(silenceCheck, timeout);
+    }
+
+    private void disarmSilenceWatch() {
+        if (silenceCheck != null) {
+            ui.removeCallbacks(silenceCheck);
+            silenceCheck = null;
+        }
+    }
+
+    // ---------------------------------------------------------------- chrome
+
+    private void setStatus(String text, int textColour, int backgroundColour) {
+        statusText.setText(text);
+        statusText.setTextColor(getColor(textColour));
+        statusText.setBackgroundColor(getColor(backgroundColour));
+    }
+
+    /** Shows an alarm and clears it after {@link #ALARM_VISIBLE_MS}. */
     private void showAlarm(String title, String body) {
         alarmTitle.setText(title);
         alarmBody.setText(body);
         alarmPanel.setVisibility(View.VISIBLE);
 
-        alarmTimer.removeCallbacks(hideAlarm);
-        alarmTimer.postDelayed(hideAlarm, ALARM_VISIBLE_MS);
+        ui.removeCallbacks(clearAlarm);
+        ui.postDelayed(clearAlarm, ALARM_VISIBLE_MS);
     }
 
     private void hideAlarm() {
-        alarmTimer.removeCallbacks(hideAlarm);
+        ui.removeCallbacks(clearAlarm);
         alarmPanel.setVisibility(View.GONE);
     }
 
@@ -530,8 +482,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     @Override
     protected void onDestroy() {
-        alarmTimer.removeCallbacks(hideAlarm);
-        disarmSilenceWatchdog();
+        ui.removeCallbacksAndMessages(null);
+        disarmSilenceWatch();
         reader.release();
         io.shutdownNow();
         super.onDestroy();
@@ -539,7 +491,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     // ------------------------------------------------------------------ rows
 
-    /** A line on screen: either a roll from the document, or a stray tag. */
     private static final class Row {
 
         String label;
@@ -592,36 +543,38 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             private final TextView code;
             private final TextView tag;
             private final TextView state;
-            private final View stripe;
+            private final View row;
 
             Holder(@NonNull View view) {
                 super(view);
                 code = view.findViewById(R.id.code);
                 tag = view.findViewById(R.id.tag);
                 state = view.findViewById(R.id.state);
-                stripe = view.findViewById(R.id.stripe);
+                row = view.findViewById(R.id.row);
             }
 
-            void bind(Row row) {
-                code.setText(row.label);
-                tag.setText(row.epc);
+            void bind(Row item) {
+                code.setText(item.label);
+                tag.setText(item.epc);
 
-                if (row.stray) {
-                    state.setText(R.string.scan_invalid_title);
-                    state.setTextColor(getColor(R.color.alarm));
-                    stripe.setBackgroundColor(getColor(R.color.alarm));
-                } else if (row.scanned) {
-                    state.setText(R.string.scan_state_read);
-                    state.setTextColor(getColor(R.color.ok));
-                    stripe.setBackgroundColor(getColor(R.color.ok));
-                } else if (row.committed) {
-                    state.setText(R.string.scan_state_done);
-                    state.setTextColor(getColor(R.color.scan_muted));
-                    stripe.setBackgroundColor(getColor(R.color.scan_muted));
+                // State is carried by a word as well as a colour, never colour
+                // alone: a third of older men see red and green differently.
+                if (item.stray) {
+                    state.setText(R.string.state_invalid);
+                    state.setBackgroundColor(getColor(R.color.alarm));
+                    row.setBackgroundResource(R.drawable.bg_row_bad);
+                } else if (item.scanned) {
+                    state.setText(R.string.state_read);
+                    state.setBackgroundColor(getColor(R.color.ok));
+                    row.setBackgroundResource(R.drawable.bg_row_read);
+                } else if (item.committed) {
+                    state.setText(R.string.state_done);
+                    state.setBackgroundColor(getColor(R.color.ink_muted));
+                    row.setBackgroundResource(R.drawable.bg_row);
                 } else {
-                    state.setText(R.string.scan_state_pending);
-                    state.setTextColor(getColor(R.color.scan_muted));
-                    stripe.setBackgroundColor(getColor(R.color.scan_line));
+                    state.setText(R.string.state_waiting);
+                    state.setBackgroundColor(getColor(R.color.brand));
+                    row.setBackgroundResource(R.drawable.bg_row);
                 }
             }
         }

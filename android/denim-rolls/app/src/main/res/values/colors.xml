@@ -1,29 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Light only, and deliberately high-contrast. This is read by people of every
+  age across a loading bay, so the palette is black on white with saturated
+  accents, not a subtle grey scale.
+-->
 <resources>
-    <!-- Taken from the SMA Technology mark. -->
     <color name="brand">#F07800</color>
     <color name="brand_dark">#C25E00</color>
     <color name="brand_soft">#FFF1E2</color>
 
-    <color name="ink">#12161A</color>
-    <color name="ink_muted">#5A6773</color>
+    <!-- Page -->
+    <color name="page">#FFFFFF</color>
     <color name="surface">#FFFFFF</color>
-    <color name="surface_alt">#F4F6F8</color>
-    <color name="line">#DBE2E8</color>
+    <color name="surface_alt">#F2F5F8</color>
+    <color name="ink">#000000</color>
+    <color name="ink_soft">#333B42</color>
+    <color name="ink_muted">#5A6773</color>
+    <color name="line">#000000</color>
+    <color name="line_soft">#B9C4CE</color>
 
-    <!-- Scan screen runs dark: it is read across a loading bay. -->
-    <color name="scan_bg">#0D1117</color>
-    <color name="scan_surface">#161D26</color>
-    <color name="scan_line">#27313D</color>
-    <color name="scan_text">#E8EEF4</color>
-    <color name="scan_muted">#8C9AA8</color>
+    <!-- The figures on the gate sheet are red, as on the printed form. -->
+    <color name="figure">#E10600</color>
 
-    <color name="ok">#1B9E4B</color>
-    <color name="ok_soft">#E4F5EA</color>
-    <color name="warn">#C77700</color>
-    <color name="alarm">#D92D20</color>
-    <color name="alarm_soft">#FDECEA</color>
-    <color name="info">#1668C4</color>
-    <!-- Launcher plate. Neutral so the orange mark reads as the mark. -->
+    <!-- Field boxes on the header, outlined in blue like the paper form. -->
+    <color name="field_border">#2432E0</color>
+
+    <color name="inward">#118A3D</color>
+    <color name="outward">#1352C4</color>
+
+    <color name="ok">#118A3D</color>
+    <color name="ok_soft">#DFF4E7</color>
+    <color name="warn">#B36A00</color>
+    <color name="warn_soft">#FFF0D6</color>
+    <color name="alarm">#D50000</color>
+    <color name="alarm_soft">#FFE2E2</color>
+    <color name="info">#1352C4</color>
+    <color name="info_soft">#E1EBFB</color>
+
+    <color name="button_start">#118A3D</color>
+    <color name="button_stop">#D50000</color>
+    <color name="button_back">#42505C</color>
+
     <color name="icon_background">#FFFFFF</color>
 </resources>

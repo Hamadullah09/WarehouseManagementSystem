@@ -84,14 +84,7 @@ public final class DocumentsActivity extends AppCompatActivity {
             load();
         });
 
-        findViewById(R.id.sign_out).setOnClickListener(v -> {
-            api.signOut();
-            startActivity(new Intent(this, LoginActivity.class));
-            finish();
-        });
-
-        findViewById(R.id.settings).setOnClickListener(
-                v -> startActivity(new Intent(this, SettingsActivity.class)));
+        findViewById(R.id.account).setOnClickListener(this::showAccountMenu);
     }
 
     @Override
@@ -108,7 +101,53 @@ public final class DocumentsActivity extends AppCompatActivity {
         userView.setText(getString(R.string.documents_signed_in, api.displayName()));
         gateView.setText(settings.gateCode());
 
+        String name = api.displayName();
+        ((TextView) findViewById(R.id.account)).setText(
+                name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase(Locale.US));
+
         load();
+    }
+
+    /**
+     * The account menu: who you are, and the two things you can do about it.
+     *
+     * <p>Administrators also get the user list here. An operator never sees it,
+     * and nobody sees deployment settings: those belong to whoever installs
+     * the reader, not to the people who use it.
+     */
+    private void showAccountMenu(View anchor) {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor);
+
+        menu.getMenu().add(0, 1, 0, R.string.profile);
+
+        if (api.roles().contains("Administrator")) {
+            menu.getMenu().add(0, 2, 1, R.string.users);
+        }
+
+        menu.getMenu().add(0, 3, 2, R.string.logout);
+
+        menu.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 1:
+                    startActivity(new Intent(this, ProfileActivity.class));
+                    return true;
+
+                case 2:
+                    startActivity(new Intent(this, UsersActivity.class));
+                    return true;
+
+                case 3:
+                    api.signOut();
+                    startActivity(new Intent(this, LoginActivity.class));
+                    finish();
+                    return true;
+
+                default:
+                    return false;
+            }
+        });
+
+        menu.show();
     }
 
     private void load() {
