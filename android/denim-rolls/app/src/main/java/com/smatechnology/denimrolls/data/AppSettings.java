@@ -33,7 +33,6 @@ public final class AppSettings {
     private static final String KEY_GPIO_START = "gpio_start_enabled";
     private static final String KEY_GPIO_INPUT = "gpio_input_pin";
     private static final String KEY_GPIO_ACTIVE_HIGH = "gpio_active_high";
-    private static final String KEY_GATE_POWER = "gate_power_output";
     private static final String KEY_ALARM_MS = "alarm_millis";
 
     /** One roll released per second, as the gate procedure works. */
@@ -54,12 +53,6 @@ public final class AppSettings {
 
     /** Input line the gate signal is wired to, 1-4. */
     public static final int DEFAULT_GPIO_INPUT = 1;
-
-    /**
-     * GPO feeding the gate sensor, switched on for the length of a session.
-     * Zero means the sensor has its own supply, which is the usual case.
-     */
-    public static final int DEFAULT_GATE_POWER = 0;
 
     /**
      * How long an alarm sounds. Long enough that somebody at the far end of
@@ -199,15 +192,6 @@ public final class AppSettings {
     }
 
     /** True when 12V present means "gate active". False for a normally-closed sensor. */
-    /** GPO switched on while a session is open, or 0 for none. */
-    public int gatePowerOutput() {
-        return prefs.getInt(KEY_GATE_POWER, DEFAULT_GATE_POWER);
-    }
-
-    public void setGatePowerOutput(int value) {
-        prefs.edit().putInt(KEY_GATE_POWER, Math.max(0, Math.min(4, value))).apply();
-    }
-
     /** How long the beeper and beacon stay on for an alarm. */
     public int alarmMillis() {
         return prefs.getInt(KEY_ALARM_MS, DEFAULT_ALARM_MS);

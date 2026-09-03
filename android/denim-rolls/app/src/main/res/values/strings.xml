@@ -47,7 +47,7 @@
     <string name="scan_reading">Reading. Send one roll at a time.</string>
     <string name="scan_stopped">Checking the list…</string>
     <string name="scan_invalid_title">WRONG ROLL</string>
-    <string name="scan_invalid_body">This roll is not on document %1$s. Take it out.</string>
+    <string name="scan_invalid_body">This roll is not on document %1$s. Take it off, then press RESET.</string>
     <string name="scan_unknown_body">This EPC is not registered in the warehouse</string>
     <string name="scan_no_silence">Nothing read for a moment. Check the tag on the roll.</string>
     <string name="scan_unknown_roll">UNKNOWN ROLL</string>
@@ -129,7 +129,7 @@
     <string name="status_alarm_line">%1$s — %2$s</string>
     <string name="gpio_heading">Gate signal (GPIO)</string>
     <string name="gpio_start">Start and stop from the gate signal</string>
-    <string name="gpio_start_hint">Off: the operator presses START, and the reader reads until STOP. On: START only gets ready, and each time the gate sends 12V the reader reads one roll and stops again.</string>
+    <string name="gpio_start_hint">Off: the operator presses START, and the reader reads until STOP. On: START is pressed once, and after that every roll that breaks the beam sends 12V and is read on its own.</string>
     <string name="gpio_input">Gate signal input (1 to 4)</string>
     <string name="gpio_input_hint">Which of the four inputs the sensor is wired to. Input 1 is terminal pin 5, input 2 pin 17, input 3 pin 6, input 4 pin 18.</string>
     <string name="gpio_active_high">12V on the input means the gate is active</string>
@@ -142,11 +142,12 @@
     <string name="scan_gate_armed">Ready. Send the rolls through the gate.</string>
     <string name="scan_gate_reading">Reading this roll…</string>
     <string name="scan_gate_waiting">Waiting for the next roll…</string>
-    <string name="scan_cycle_no_tag">That roll had no tag. Take it out and check its tag.</string>
+    <string name="scan_cycle_no_tag">A roll went past and no tag was read. Take it off, then press RESET.</string>
     <string name="scan_all_good">All %1$d rolls are correct.</string>
     <string name="scan_count_line">%1$s (%2$d)</string>
-    <string name="gate_power">Power the gate sensor from output (0 = none)</string>
-    <string name="gate_power_hint">If the gate sensor is fed from one of the reader outputs, put its number here. START switches it on, STOP switches it off, so the gate can only trigger a scan while a document is open.</string>
     <string name="alarm_length">Alarm length (ms)</string>
     <string name="alarm_length_hint">How long the beeper and beacon stay on when something is wrong. 4000 = four seconds.</string>
+    <string name="reset">RESET</string>
+    <string name="scan_latched">Stopped. Take the roll off, then press RESET.</string>
+    <string name="scan_reset_done">Ready. Send the next roll through.</string>
 </resources>

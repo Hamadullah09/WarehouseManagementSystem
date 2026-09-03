@@ -107,6 +107,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     /** True while the gate signal is held and the reader is reading a roll. */
     private boolean cycleRunning;
 
+    /** True while an alarm is holding the gate, waiting for RESET. */
+    private boolean latched;
+
     /** Tags delivered during the current gate cycle, repeats included. */
     private int cycleTags;
 
@@ -131,6 +134,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private int restingBackground = R.color.info_soft;
     private MaterialButton startButton;
     private MaterialButton stopButton;
+    private MaterialButton resetButton;
     private RowAdapter adapter;
 
     @Override
@@ -155,6 +159,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         statusPanel = findViewById(R.id.status_panel);
         startButton = findViewById(R.id.start);
         stopButton = findViewById(R.id.stop);
+        resetButton = findViewById(R.id.reset);
 
         RecyclerView list = findViewById(R.id.rolls);
         list.setLayoutManager(new LinearLayoutManager(this));
@@ -168,6 +173,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
         startButton.setOnClickListener(v -> startSession());
         stopButton.setOnClickListener(v -> confirmStop());
+        resetButton.setOnClickListener(v -> resetAlarm());
         findViewById(R.id.back).setOnClickListener(v -> finish());
 
         loadDocument();
@@ -265,7 +271,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             // Nothing is read yet. The gate says when, one roll at a time,
             // and the session is only the window in which it is allowed to.
             sessionOpen = true;
-            reader.powerGate(true);
             showButtons();
 
             setStatus(getString(R.string.scan_gate_armed), R.color.info, R.color.info_soft);
@@ -287,6 +292,54 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private void showButtons() {
         startButton.setVisibility(sessionOpen ? View.GONE : View.VISIBLE);
         stopButton.setVisibility(sessionOpen ? View.VISIBLE : View.GONE);
+        resetButton.setVisibility(latched ? View.VISIBLE : View.GONE);
+    }
+
+    // ----------------------------------------------------------- the latch
+
+    /**
+     * Holds the gate until somebody says the roll has been dealt with.
+     *
+     * <p>An alarm here does not time out. A wrong roll and a roll that went
+     * through untagged both leave something physical to sort out, and a timer
+     * cannot sort it out; clearing the alarm by itself would only mean the
+     * warning had been outlasted. So the reader stops, the alarm keeps
+     * sounding, and the one thing on offer is RESET.
+     */
+    private void latchAlarm(String title, String body) {
+        latched = true;
+        cycleRunning = false;
+
+        disarmSilenceWatch();
+        reader.stop();
+
+        ui.removeCallbacks(clearAlarm);
+        paintAlarm(title, body);
+        showButtons();
+    }
+
+    /** Somebody has dealt with it. Back to reading. */
+    private void resetAlarm() {
+        latched = false;
+
+        reader.cancelAlarm();
+        hideAlarm();
+        showButtons();
+
+        if (!sessionOpen) {
+            return;
+        }
+
+        if (gateDriven) {
+            setStatus(getString(R.string.scan_reset_done), R.color.info, R.color.info_soft);
+
+            return;
+        }
+
+        if (reader.start()) {
+            setStatus(getString(R.string.scan_reading), R.color.ok, R.color.ok_soft);
+            armSilenceWatch();
+        }
     }
 
     // ----------------------------------------------------------- gate cycle
@@ -336,8 +389,8 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         setStatus(getString(R.string.scan_gate_waiting), R.color.info, R.color.info_soft);
 
         if (cycleTags == 0) {
-            reader.signalNoTag();
-            showAlarm(getString(R.string.scan_no_tag_title),
+            reader.signalMissedRoll();
+            latchAlarm(getString(R.string.scan_no_tag_title),
                     getString(R.string.scan_cycle_no_tag));
         }
     }
@@ -353,10 +406,11 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private void stopSession() {
         sessionOpen = false;
         cycleRunning = false;
+        latched = false;
 
         disarmSilenceWatch();
         reader.stop();
-        reader.powerGate(false);
+        reader.cancelAlarm();
 
         showButtons();
         startButton.setEnabled(false);
@@ -421,8 +475,9 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             setStatus(getString(R.string.scan_pass), R.color.ok, R.color.ok_soft);
         } else {
             // The same low tone a wrong roll makes, so a failed load and a
-            // wrong roll are one idea rather than two.
-            reader.signalWrongRoll();
+            // wrong roll are one idea rather than two. Timed, not latched:
+            // the dialog beside it already needs dismissing.
+            reader.signalFailedLoad();
             setStatus(headline, R.color.alarm, R.color.alarm_soft);
         }
 
@@ -513,7 +568,10 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
      */
     @Override
     public void onGateSignal(boolean active) {
-        if (!sessionOpen || !gateDriven) {
+        // A latched alarm holds the gate. Rolls that keep arriving while the
+        // wrong one is still on the pallet are not counted, and are not
+        // quietly lost either: nothing moves until somebody presses RESET.
+        if (!sessionOpen || !gateDriven || latched) {
             return;
         }
 
@@ -549,7 +607,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             // tag is unknown to the warehouse entirely is the server's call and
             // comes back with the verdict.
             reader.signalWrongRoll();
-            showAlarm(getString(R.string.scan_invalid_title),
+            latchAlarm(getString(R.string.scan_invalid_title),
                     getString(R.string.scan_invalid_body, document.documentNumber));
 
             strays.add(epc);
@@ -647,13 +705,18 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
      * new alarm restarts the timer.
      */
     private void showAlarm(String title, String body) {
+        paintAlarm(title, body);
+
+        ui.removeCallbacks(clearAlarm);
+        ui.postDelayed(clearAlarm, ALARM_VISIBLE_MS);
+    }
+
+    /** Puts the problem in the band and leaves it there. */
+    private void paintAlarm(String title, String body) {
         statusText.setText(getString(R.string.status_alarm_line, title, body));
         statusText.setTextColor(getColor(R.color.page));
         statusPanel.setBackgroundColor(getColor(R.color.alarm));
         lastEpc.setTextColor(getColor(R.color.page));
-
-        ui.removeCallbacks(clearAlarm);
-        ui.postDelayed(clearAlarm, ALARM_VISIBLE_MS);
     }
 
     private void hideAlarm() {

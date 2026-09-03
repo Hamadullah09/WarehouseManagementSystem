@@ -143,6 +143,9 @@ public final class ReaderController {
     /** True when the alarm sounding is about a roll, not about silence. */
     private volatile boolean alarmIsWrongRoll;
 
+    /** True when the alarm will not stop on its own. */
+    private volatile boolean latched;
+
     private Runnable alarmDone;
     private Boolean lastGateSignal;
 
@@ -333,7 +336,6 @@ public final class ReaderController {
         stopGateInputWatch();
         sounds.release();
         cancelAlarm();
-        powerGate(false);
         stop();
 
         try {
@@ -612,13 +614,29 @@ public final class ReaderController {
         }
     }
 
-    /** A roll that is not on this document: four fast beeps, over and over. */
+    /**
+     * A roll that is not on this document: four fast beeps, over and over.
+     *
+     * <p>Latched. It does not stop on a timer, because the roll that caused
+     * it is still on the pallet and a timer cannot take it off. It stops when
+     * somebody presses RESET, which is the same as somebody saying they have
+     * dealt with it.
+     */
     public void signalWrongRoll() {
         if (settings.soundEnabled()) {
             sounds.wrongRoll();
         }
 
-        signalAlarm(WRONG_ROLL_BEEPS, true);
+        alarm(WRONG_ROLL_BEEPS, true, 0);
+    }
+
+    /** The same, but timed: for a verdict, where the dialog carries the news. */
+    public void signalFailedLoad() {
+        if (settings.soundEnabled()) {
+            sounds.wrongRoll();
+        }
+
+        alarm(WRONG_ROLL_BEEPS, true, settings.alarmMillis());
     }
 
     /**
@@ -640,11 +658,31 @@ public final class ReaderController {
             sounds.noTag();
         }
 
-        signalAlarm(NO_TAG_BEEPS, false);
+        alarm(NO_TAG_BEEPS, false, settings.alarmMillis());
+    }
+
+    /**
+     * A roll broke the beam and nothing answered before it cleared.
+     *
+     * <p>Latched, for the same reason a wrong roll is: an untagged roll has
+     * gone through the gate and is not on any list. Somebody has to go and
+     * find it.
+     */
+    public void signalMissedRoll() {
+        if (settings.soundEnabled()) {
+            sounds.noTag();
+        }
+
+        alarm(NO_TAG_BEEPS, false, 0);
     }
 
     public boolean isAlarming() {
         return alarming;
+    }
+
+    /** True while an alarm is waiting for somebody to press RESET. */
+    public boolean isLatched() {
+        return latched;
     }
 
     /**
@@ -661,20 +699,29 @@ public final class ReaderController {
      * for ever.
      */
     public void signalAlarm() {
-        signalAlarm(NO_TAG_BEEPS, false);
+        alarm(NO_TAG_BEEPS, false, settings.alarmMillis());
     }
 
-    private void signalAlarm(final long[] rhythm, boolean wrongRoll) {
-        final int millis = settings.alarmMillis();
+    /**
+     * Sounds an alarm.
+     *
+     * @param millis how long it runs, or 0 to latch until {@link #cancelAlarm()}
+     */
+    private void alarm(final long[] rhythm, boolean wrongRoll, final int millis) {
+        final boolean latched = millis <= 0;
         final int line = settings.alarmOutput();
-        final long until = System.currentTimeMillis() + millis;
+        final long until = latched ? Long.MAX_VALUE : System.currentTimeMillis() + millis;
 
         cancelAlarm();
 
         alarming = true;
         alarmIsWrongRoll = wrongRoll;
-        alarmDone = () -> alarming = false;
-        main.postDelayed(alarmDone, millis);
+        this.latched = latched;
+
+        if (!latched) {
+            alarmDone = () -> alarming = false;
+            main.postDelayed(alarmDone, millis);
+        }
 
         if (settings.soundEnabled()) {
             alarmBeep = new Runnable() {
@@ -708,7 +755,9 @@ public final class ReaderController {
                 }
             };
 
-            main.postDelayed(alarmRelease, millis);
+            if (!latched) {
+                main.postDelayed(alarmRelease, millis);
+            }
         } catch (Throwable t) {
             Log.w(TAG, "could not drive alarm output", t);
         }
@@ -718,6 +767,7 @@ public final class ReaderController {
     public void cancelAlarm() {
         alarming = false;
         alarmIsWrongRoll = false;
+        latched = false;
 
         if (alarmDone != null) {
             main.removeCallbacks(alarmDone);
@@ -736,27 +786,6 @@ public final class ReaderController {
         }
     }
 
-    /**
-     * Switches the output that feeds the gate sensor, if one is configured.
-     *
-     * <p>Wiring the sensor through a reader output means the gate can only
-     * trigger a read while a document is actually open on the screen. A pallet
-     * crossing at lunchtime then does nothing at all, rather than starting a
-     * session against whatever document happens to be loaded.
-     */
-    public void powerGate(boolean on) {
-        int line = settings.gatePowerOutput();
-
-        if (line < 1 || reader == null) {
-            return;
-        }
-
-        try {
-            setOutput(line, on);
-        } catch (Throwable t) {
-            Log.w(TAG, "could not switch the gate power output", t);
-        }
-    }
 
     private void setOutput(int line, boolean on) {
         if (reader == null) {

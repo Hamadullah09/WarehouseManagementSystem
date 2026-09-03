@@ -11,8 +11,8 @@ android {
         // The U300 runs Android 11 (API 30); 24 keeps handheld terminals in scope.
         minSdk 24
         targetSdk 34
-        versionCode 12
-        versionName "2.5.1"
+        versionCode 13
+        versionName "2.6.0"
 
         // The Chainway SDK ships native libraries for ARM only.
         ndk {

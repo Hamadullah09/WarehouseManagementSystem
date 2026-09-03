@@ -42,4 +42,6 @@
     <color name="button_back">#42505C</color>
 
     <color name="icon_background">#FFFFFF</color>
+    <!-- The reset button: not red, because it is the way out of red. -->
+    <color name="reset">#B36A00</color>
 </resources>

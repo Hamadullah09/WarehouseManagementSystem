@@ -102,31 +102,55 @@ Two ways, chosen by **Start and stop from the gate signal** in Reader settings.
 Distinct tags are released one per *Read interval* so the list fills at a pace a
 person can follow, and *No-tag alarm after* raises the alarm on a quiet spell.
 
-**Gate signal.** START only opens the session; the reading is driven by the
-gate's own sensor:
+**Gate signal.** The sensor across the gate is powered independently of this
+app and holds its beam closed. A roll breaking the beam is what puts 12V on the
+input; nothing the app does supplies that power, and START does not switch it.
+The operator opens the document, presses START once, and after that every roll
+is handled on its own:
 
 ```
-START  ──▶ session open, gate powered (if an output is configured)
-             │
-             ▼
-   12V on the input  ──▶ inventory on, read this roll
-   12V drops         ──▶ inventory off, judge the roll
-                           no tag  ──▶ alarm for "Alarm length"
-                           not on the document ──▶ same alarm, when it was read
-             │
-             ▼  (repeats for every roll)
-STOP   ──▶ session closed, gate unpowered, the whole load sent to the server
+START  ──▶ session open, waiting
+
+  beam broken   ──▶ 12V on the input, inventory on, read this roll
+  beam restored ──▶ inventory off, judge the roll
+
+        on the document   ──▶ one beep, count goes up
+        not on it         ──▶ ALARM, latched
+        nothing read      ──▶ ALARM, latched
+
+  (repeats for every roll, with no further input)
+
+STOP   ──▶ session closed, the whole load sent to the server
 ```
 
-Pacing is switched off in this mode: the gate already admits one roll at a
-time, and holding tags back on top of a signal that lasts a second or two
-would only lose them. The GPI is polled at 150 ms, since the window that
-brackets a single roll is far shorter than one that bracketed a whole session.
+### Latched alarms
 
-The buttons bound the session in both modes, so the gate can do nothing unless
-a document is open on the screen. Where the sensor is fed from one of the
-reader's outputs (*Power the gate sensor from output*), START and STOP switch
-that supply, making it true electrically as well as in software.
+Both gate alarms latch. They do not stop on a timer, because both leave
+something physical to sort out and a timer cannot sort it out: a roll that is
+not on the document has to come off the pallet, and a roll that went through
+untagged has to be found. Clearing the alarm on its own would only mean the
+warning had been outlasted.
+
+While latched the reader stops reading and further beam breaks are ignored, so
+rolls that keep arriving are not counted and are not silently lost either.
+**RESET** appears beside STOP; pressing it silences the alarm and goes back to
+waiting for the next roll.
+
+Pacing is off in this mode. The gate already admits one roll at a time, and
+holding tags back on top of a signal that lasts a second or two would only lose
+them. The GPI is polled at 150 ms, since the window that brackets a single roll
+is far shorter than one that bracketed a whole session.
+
+### Which noise is which
+
+The reader has one buzzer, one tone, and no way to change it, so the three
+outcomes are told apart by rhythm:
+
+| | Buzzer | Beacon |
+|---|---|---|
+| Roll is on the document | one beep | – |
+| Roll is not on the document | four fast beeps, until RESET | on |
+| Roll read nothing | two slow beeps, until RESET | on |
 
 ## SDK calls used
 

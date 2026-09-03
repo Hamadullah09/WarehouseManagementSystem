@@ -243,7 +243,12 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Controls. Green go, red stop, grey back. -->
+        <!--
+          Controls. Green go, red stop, grey back, and a reset that is only
+          there when something has latched: an alarm this gate raises does not
+          time out, because the roll that caused it has to be taken off the
+          pallet by hand and somebody has to say they have done it.
+        -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -279,6 +284,17 @@
                 android:text="@string/stop"
                 android:visibility="gone"
                 app:backgroundTint="@color/button_stop" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reset"
+                style="@style/Sheet.Button"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_weight="2"
+                android:layout_marginStart="6dp"
+                android:text="@string/reset"
+                android:visibility="gone"
+                app:backgroundTint="@color/reset" />
         </LinearLayout>
     </LinearLayout>
 
