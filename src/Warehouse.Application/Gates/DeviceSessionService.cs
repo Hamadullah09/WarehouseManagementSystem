@@ -108,7 +108,6 @@ public interface IDeviceSessionService
 public sealed class DeviceSessionService(
     IWarehouseDbContext db,
     IClock clock,
-    ICurrentUser currentUser,
     INumberGenerator numbers,
     IValidationEngine validator,
     IInventoryService inventory,

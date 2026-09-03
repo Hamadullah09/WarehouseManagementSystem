@@ -11,8 +11,8 @@ android {
         // The U300 runs Android 11 (API 30); 24 keeps handheld terminals in scope.
         minSdk 24
         targetSdk 34
-        versionCode 13
-        versionName "2.6.0"
+        versionCode 14
+        versionName "2.6.1"
 
         // The Chainway SDK ships native libraries for ARM only.
         ndk {
@@ -88,4 +88,8 @@ dependencies {
     // Networking and JSON use the platform's own HttpURLConnection and
     // org.json rather than pulling in a stack: fewer moving parts to keep
     // patched on a device that may sit on a warehouse LAN for years.
+
+    // The gate rules are plain Java with no Android in them, so they run on
+    // the desk rather than only at the barrier.
+    testImplementation 'junit:junit:4.13.2'
 }

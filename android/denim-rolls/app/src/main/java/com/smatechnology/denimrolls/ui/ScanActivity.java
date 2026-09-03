@@ -22,6 +22,7 @@ import com.smatechnology.denimrolls.data.AppSettings;
 import com.smatechnology.denimrolls.data.DocumentDetail;
 import com.smatechnology.denimrolls.data.DocumentItem;
 import com.smatechnology.denimrolls.data.SessionResult;
+import com.smatechnology.denimrolls.gate.GateCycle;
 import com.smatechnology.denimrolls.rfid.ReaderController;
 
 import java.text.SimpleDateFormat;
@@ -98,20 +99,13 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     private int documentId;
 
-    /** True between START and STOP, whichever drives the reading. */
-    private boolean sessionOpen;
-
-    /** True when the gate signal, not the buttons, starts each read. */
-    private boolean gateDriven;
-
-    /** True while the gate signal is held and the reader is reading a roll. */
-    private boolean cycleRunning;
-
-    /** True while an alarm is holding the gate, waiting for RESET. */
-    private boolean latched;
-
-    /** Tags delivered during the current gate cycle, repeats included. */
-    private int cycleTags;
+    /**
+     * When the gate reads, when it stops, and when it refuses to carry on.
+     *
+     * <p>Kept out here with no Android in it so the rules can be tested at a
+     * desk. This screen does what it is told and owns none of the decisions.
+     */
+    private final GateCycle gate = new GateCycle();
 
     private long sessionStartedAt;
     private long lastReadAt;
@@ -265,34 +259,32 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         hideAlarm();
         reader.cancelAlarm();
 
-        gateDriven = settings.gpioStartEnabled();
+        if (gate.start(settings.gpioStartEnabled()) == GateCycle.Action.START_READING) {
+            if (!reader.start()) {
+                // Put the session back. An open session that is not reading
+                // would show STOP over a reader that never started.
+                gate.stop();
 
-        if (gateDriven) {
-            // Nothing is read yet. The gate says when, one roll at a time,
-            // and the session is only the window in which it is allowed to.
-            sessionOpen = true;
+                return;
+            }
+
             showButtons();
-
-            setStatus(getString(R.string.scan_gate_armed), R.color.info, R.color.info_soft);
+            setStatus(getString(R.string.scan_reading), R.color.ok, R.color.ok_soft);
+            armSilenceWatch();
 
             return;
         }
 
-        if (!reader.start()) {
-            return;
-        }
-
-        sessionOpen = true;
+        // Gate-driven: nothing is read yet. The beam says when, one roll at a
+        // time, and the session is only the window in which it may.
         showButtons();
-
-        setStatus(getString(R.string.scan_reading), R.color.ok, R.color.ok_soft);
-        armSilenceWatch();
+        setStatus(getString(R.string.scan_gate_armed), R.color.info, R.color.info_soft);
     }
 
     private void showButtons() {
-        startButton.setVisibility(sessionOpen ? View.GONE : View.VISIBLE);
-        stopButton.setVisibility(sessionOpen ? View.VISIBLE : View.GONE);
-        resetButton.setVisibility(latched ? View.VISIBLE : View.GONE);
+        startButton.setVisibility(gate.isSessionOpen() ? View.GONE : View.VISIBLE);
+        stopButton.setVisibility(gate.isSessionOpen() ? View.VISIBLE : View.GONE);
+        resetButton.setVisibility(gate.isLatched() ? View.VISIBLE : View.GONE);
     }
 
     // ----------------------------------------------------------- the latch
@@ -307,9 +299,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
      * sounding, and the one thing on offer is RESET.
      */
     private void latchAlarm(String title, String body) {
-        latched = true;
-        cycleRunning = false;
-
         disarmSilenceWatch();
         reader.stop();
 
@@ -320,23 +309,19 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
 
     /** Somebody has dealt with it. Back to reading. */
     private void resetAlarm() {
-        latched = false;
+        GateCycle.Action next = gate.reset();
 
         reader.cancelAlarm();
         hideAlarm();
         showButtons();
 
-        if (!sessionOpen) {
-            return;
-        }
-
-        if (gateDriven) {
+        if (next == GateCycle.Action.RESUME_WAITING) {
             setStatus(getString(R.string.scan_reset_done), R.color.info, R.color.info_soft);
 
             return;
         }
 
-        if (reader.start()) {
+        if (next == GateCycle.Action.RESUME_READING && reader.start()) {
             setStatus(getString(R.string.scan_reading), R.color.ok, R.color.ok_soft);
             armSilenceWatch();
         }
@@ -352,12 +337,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
      * them.
      */
     private void beginCycle() {
-        if (cycleRunning || !reader.start(false)) {
-            return;
-        }
-
-        cycleRunning = true;
-        cycleTags = 0;
+        reader.start(false);
 
         // A new roll at the gate means the last one has been dealt with.
         reader.cancelAlarm();
@@ -367,11 +347,6 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     }
 
     private void endCycle() {
-        if (!cycleRunning) {
-            return;
-        }
-
-        cycleRunning = false;
         reader.stop();
 
         // stop() releases whatever was still queued, and those arrive on this
@@ -388,7 +363,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     private void judgeCycle() {
         setStatus(getString(R.string.scan_gate_waiting), R.color.info, R.color.info_soft);
 
-        if (cycleTags == 0) {
+        if (gate.judge() == GateCycle.Action.LATCH_MISSED_ROLL) {
             reader.signalMissedRoll();
             latchAlarm(getString(R.string.scan_no_tag_title),
                     getString(R.string.scan_cycle_no_tag));
@@ -404,9 +379,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
     }
 
     private void stopSession() {
-        sessionOpen = false;
-        cycleRunning = false;
-        latched = false;
+        gate.stop();
 
         disarmSilenceWatch();
         reader.stop();
@@ -568,16 +541,14 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
      */
     @Override
     public void onGateSignal(boolean active) {
-        // A latched alarm holds the gate. Rolls that keep arriving while the
-        // wrong one is still on the pallet are not counted, and are not
-        // quietly lost either: nothing moves until somebody presses RESET.
-        if (!sessionOpen || !gateDriven || latched) {
-            return;
-        }
+        // Whether this is a roll at all -- rather than a chattering beam, or
+        // one arriving while a latched alarm holds the gate -- is the state
+        // machine's call, not this screen's.
+        GateCycle.Action next = active ? gate.beamBroken() : gate.beamRestored();
 
-        if (active) {
+        if (next == GateCycle.Action.START_READING) {
             beginCycle();
-        } else {
+        } else if (next == GateCycle.Action.JUDGE_ROLL) {
             endCycle();
         }
     }
@@ -594,7 +565,7 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
         // Counted before the duplicate check: the cycle's question is whether
         // anything answered, not whether it was new. A roll sent through
         // twice has a working tag either way.
-        cycleTags++;
+        gate.tagSeen();
 
         if (!accepted.add(epc)) {
             return;
@@ -606,9 +577,11 @@ public final class ScanActivity extends AppCompatActivity implements ReaderContr
             // What matters on the floor is "not on this document". Whether the
             // tag is unknown to the warehouse entirely is the server's call and
             // comes back with the verdict.
-            reader.signalWrongRoll();
-            latchAlarm(getString(R.string.scan_invalid_title),
-                    getString(R.string.scan_invalid_body, document.documentNumber));
+            if (gate.wrongRoll() == GateCycle.Action.LATCH_WRONG_ROLL) {
+                reader.signalWrongRoll();
+                latchAlarm(getString(R.string.scan_invalid_title),
+                        getString(R.string.scan_invalid_body, document.documentNumber));
+            }
 
             strays.add(epc);
             rebuildRows();
